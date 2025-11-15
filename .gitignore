@@ -1,3 +1,4 @@
+
 *.log
 .DS_Store
 .env
@@ -16,8 +17,17 @@
 /public/build
 /public/hot
 /public/storage
-/storage/*.key
-/storage/pail
+
+# Ignore storage except necessary folders
+/storage/*
+!/storage/app
+!/storage/app/public
+!/storage/framework
+!/storage/framework/cache
+!/storage/framework/sessions
+!/storage/framework/views
+!/storage/logs
+
 /vendor
 Homestead.json
 Homestead.yaml
