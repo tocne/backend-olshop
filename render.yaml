@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: laravel-backend
+    env: docker
+    region: singapore          # biar deket dan cepat (opsional)
+    plan: free                 # selama free plan tersedia
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: APP_KEY
+        sync: false
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: APP_URL
+        value: https://your-render-url.onrender.com
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        value: your-supabase-host
+      - key: DB_PORT
+        value: 5432
+      - key: DB_DATABASE
+        value: postgres
+      - key: DB_USERNAME
+        value: postgres
+      - key: DB_PASSWORD
+        sync: false
