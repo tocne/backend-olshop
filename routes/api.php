@@ -23,20 +23,6 @@ Route::put('/orders/{id}/ship', [OrderController::class, 'ship']);
 Route::put('/orders/{id}/complete', [OrderController::class, 'complete']);
 Route::post('/upload', [UploadController::class, 'store']);
 
-Route::get('/debug-db', function () {
-    return [
-        'default' => config('database.default'),
-        'connection' => config('database.connections.' . config('database.default')),
-        'env_check' => [
-            'DB_CONNECTION' => env('DB_CONNECTION'),
-            'DB_HOST' => env('DB_HOST'),
-            'DB_DATABASE' => env('DB_DATABASE'),
-            'DB_USERNAME' => env('DB_USERNAME'),
-            'DB_PASSWORD' => env('DB_PASSWORD'),
-        ],
-    ];
-});
-
 
 Route::middleware('auth:sanctum')->group(function () {
 Route::get('/me', [AuthController::class, 'me']);
