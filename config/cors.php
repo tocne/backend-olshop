@@ -6,7 +6,10 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://localhost:3000'],
+    'allowed_origins' => [
+    'http://localhost:3000',
+    'http://localhost:3000',
+    'https://laravel-backend-production-0ea6.up.railway.app',],
 
     'allowed_origins_patterns' => [],
 
