@@ -8,8 +8,8 @@ class Series extends Model
 {
     protected $fillable = ['name', 'description', 'price'];
 
-    public function items()
+    public function products()
     {
-        return $this->hasMany(SeriesItem::class);
+        return $this->belongsToMany(Product::class, 'series_products');
     }
 }
