@@ -7,7 +7,7 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
-    'http://localhost:3000',
+    'http://localhost:5173',
     'http://localhost:3000',
     'https://laravel-backend-production-0ea6.up.railway.app',],
 
@@ -19,6 +19,6 @@ return [
 
     'max_age' => 0,
 
-    'supports_credentials' => true,
+    'supports_credentials' => false,
 
 ];
