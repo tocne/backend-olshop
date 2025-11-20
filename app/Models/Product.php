@@ -9,7 +9,7 @@ class Product extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['category_id', 'name', 'description', 'price', 'stock','image_url'];
+    protected $fillable = ['category_id', 'name', 'description', 'price', 'stock','image_url','size','color'];
 
     public function category()
     {
@@ -20,5 +20,18 @@ class Product extends Model
     {
         return $this->hasMany(OrderItem::class);
     }
+
+    public function orders()
+    {
+        return $this->belongsToMany(Order::class, 'order_items')
+                    ->withPivot('quantity', 'price')
+                    ->withTimestamps();
+    }
+
+    public function sizes()
+    {
+        return $this->hasMany(ProductSize::class);
+    }
+
 }
 

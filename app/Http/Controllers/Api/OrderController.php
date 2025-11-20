@@ -22,7 +22,8 @@ class OrderController extends Controller
     public function index()
     {
         try {
-            $orders = Order::with('items.product', 'user')->get();
+            $orders = Order::with('items.product', 'items.series')
+            ->where('user_id', $request->user()->id)->get();
             return ApiResponse::success($orders, 'All orders retrieved');
 
         } catch (\Throwable $th) {
@@ -30,70 +31,85 @@ class OrderController extends Controller
         }
 
     }
+    
+    //store method
     /**
- * @OA\Post(
- *     path="/api/orders",
- *     summary="Create new order",
- *     tags={"Orders"},
- *     @OA\RequestBody(
- *         required=true,
- *         @OA\JsonContent(
- *             required={"product_id","quantity"},
- *             @OA\Property(property="product_id", type="integer", example=1),
- *             @OA\Property(property="quantity", type="integer", example=2)
- *         )
- *     ),
- *     @OA\Response(response=201, description="Order created")
- * )
- */
+     * @OA\Post(
+     *    path="/api/orders",
+     *    summary="Create order with product sizes",
+     *    tags={"Orders"},
+     *    @OA\RequestBody(
+     *       required=true,
+     *       @OA\JsonContent(
+     *          example={
+     *             "user_id": 1,
+     *             "items": {
+     *                {"product_id": 12, "size": "M", "quantity": 2}
+     *             }
+     *          }
+     *       )
+     *    ),
+     *    @OA\Response(response=201, description="Order created")
+     * )
+     */
+
     public function store(Request $request)
     {
-        
         try {
             $validated = $request->validate([
                 'user_id' => 'required|exists:users,id',
-                'items' => 'required|array',
+                'items' => 'required|array|min:1',
                 'items.*.product_id' => 'required|exists:products,id',
+                'items.*.size' => 'required|string',
                 'items.*.quantity' => 'required|integer|min:1',
             ]);
 
-            // Validasi stok
-            foreach ($validated['items'] as $item) {
-                $product = Product::find($item['product_id']);
+            $totalPrice = 0;
 
-                if ($product->stock < $item['quantity']) {
+            foreach ($validated['items'] as $item) {
+                $product = Product::findOrFail($item['product_id']);
+
+                $sizeData = $product->sizes()
+                                    ->where('size', $item['size'])
+                                    ->first();
+
+                if (!$sizeData) {
                     return ApiResponse::error(
-                        "Stok produk {$product->name} tidak mencukupi. Sisa stok: {$product->stock}",
+                        "Size {$item['size']} tidak tersedia untuk produk {$product->name}",
                         400
                     );
                 }
-            }
 
-            // Hitung total
-            $totalPrice = 0;
-            foreach ($validated['items'] as $item) {
-                $product = Product::find($item['product_id']);
+                if ($sizeData->stock < $item['quantity']) {
+                    return ApiResponse::error(
+                        "Stok size {$item['size']} tidak mencukupi. Sisa: {$sizeData->stock}",
+                        400
+                    );
+                }
+
                 $totalPrice += $product->price * $item['quantity'];
             }
 
-            // Buat order
             $order = Order::create([
                 'user_id' => $validated['user_id'],
                 'total_price' => $totalPrice,
                 'status' => 'pending',
+                'order_type' => 'product_size'
             ]);
 
-            // Simpan item + kurangi stok
             foreach ($validated['items'] as $item) {
-                $product = Product::find($item['product_id']);
+                $product = Product::findOrFail($item['product_id']);
+
+                $sizeData = $product->sizes()->where('size', $item['size'])->first();
 
                 $order->items()->create([
                     'product_id' => $product->id,
+                    'size' => $item['size'],
                     'quantity' => $item['quantity'],
-                    'price' => $product->price,
+                    'price' => $product->price
                 ]);
 
-                $product->decrement('stock', $item['quantity']);
+                $sizeData->decrement('stock', $item['quantity']);
             }
 
             return ApiResponse::success(
@@ -106,6 +122,8 @@ class OrderController extends Controller
             return ApiResponse::error($th->getMessage(), 500);
         }
     }
+
+
 /**
  * @OA\Put(
  *     path="/api/orders/{id}/ship",

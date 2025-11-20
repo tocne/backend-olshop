@@ -27,20 +27,29 @@ class ProductController extends Controller
         }
     }
 
-    /**
+/**
  * @OA\Post(
- *     path="/api/products",
- *     summary="Create new product",
- *     tags={"Products"},
- *     @OA\RequestBody(
- *         required=true,
- *         @OA\JsonContent(
- *             required={"name","price"},
- *             @OA\Property(property="name", type="string", example="Produk A"),
- *             @OA\Property(property="price", type="number", example=15000)
- *         )
- *     ),
- *     @OA\Response(response=201, description="Product created")
+ *    path="/api/products",
+ *    summary="Create product with multiple sizes",
+ *    tags={"Products"},
+ *    @OA\RequestBody(
+ *       required=true,
+ *       @OA\JsonContent(
+ *          example={
+ *             "name": "Dress Anak",
+ *             "description": "Dress lucu",
+ *             "price": 95000,
+ *             "category_id": 1,
+ *             "color": "Pink",
+ *             "sizes": {
+ *                 {"size": "S", "stock": 10},
+ *                 {"size": "M", "stock": 15},
+ *                 {"size": "L", "stock": 7}
+ *             }
+ *          }
+ *       )
+ *    ),
+ *    @OA\Response(response=201, description="Product created")
  * )
  */
 
@@ -51,8 +60,11 @@ class ProductController extends Controller
                 'name' => 'required|string|max:255',
                 'description' => 'nullable|string',
                 'price' => 'required|numeric',
-                'stock' => 'required|integer',
                 'category_id' => 'required|exists:categories,id',
+                'sizes' => 'nullable|array',
+                'sizes.*.size' => 'required_with:sizes|string|max:50',
+                'sizes.*.stock' => 'required_with:sizes|integer|min:0',
+                'color' => 'nullable|string|max:50',
                 'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
             ]);
 
@@ -62,7 +74,15 @@ class ProductController extends Controller
             }
 
             $product = Product::create($validated);
-            return ApiResponse::success($product, 'Product created successfully', 201);
+
+                    foreach ($validated['sizes'] as $sizeData) {
+                    $product->sizes()->create([
+                        'size' => $sizeData['size'],
+                        'stock' => $sizeData['stock']
+                    ]);
+                }
+
+            return ApiResponse::success($product->load('sizes'), 'Product created successfully', 201);
         } catch (\Throwable $th) {
             return ApiResponse::error($th->getMessage(), 500);
         }
@@ -118,8 +138,40 @@ class ProductController extends Controller
     {
         try {
             $product = Product::findOrFail($id);
-            $product->update($request->all());
-            return ApiResponse::success($product, 'Product updated successfully');
+            $validated = $request->validate([
+            'name' => 'string|max:255',
+            'description' => 'nullable|string',
+            'price' => 'numeric',
+            'category_id' => 'exists:categories,id',
+            'color' => 'string|max:50',
+
+            'sizes' => 'nullable|array',
+            'sizes.*.size' => 'required_with:sizes|string|max:50',
+            'sizes.*.stock' => 'required_with:sizes|integer|min:0',
+
+            'image' => 'nullable|image|max:2048'
+        ]);
+
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('products', 'public');
+            $validated['image_url'] = asset('storage/' . $path);
+        }
+
+        $product->update($validated);
+
+        if ($request->has('sizes')) {
+            $product->sizes()->delete();
+            foreach ($validated['sizes'] as $sizeData) {
+                $product->sizes()->create([
+                    'size' => $sizeData['size'],
+                    'stock' => $sizeData['stock']
+                ]);
+            }
+        }
+
+        return ApiResponse::success(
+            $product->load('sizes'),'Product updated successfully');
+
         } catch (\Throwable $th) {
             return ApiResponse::error($th->getMessage(), 500);
         }

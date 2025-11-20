@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('orders', function (Blueprint $table) {
-            $table->decimal('total_price', 10, 2)->default(0);
+            $table->enum('order_type', ['suka_suka', 'seri', 'normal'])
+            ->default('suka_suka')
+            ->after('status');
         });
     }
 
@@ -22,7 +24,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('orders', function (Blueprint $table) {
-            $table->dropColumn('total_price');
+            $table->dropColumn('order_type');
         });
     }
 };
