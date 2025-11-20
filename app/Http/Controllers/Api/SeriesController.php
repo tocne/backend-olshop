@@ -6,6 +6,7 @@ use App\Models\Series;
 use Illuminate\Http\Request;
 use App\Helpers\ApiResponse;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class SeriesController extends Controller
 {
@@ -118,7 +119,7 @@ class SeriesController extends Controller
             
             $series->series_code = 'SER' . strtoupper(Str::random(6));
             $series->save();
-            
+
             $series->products()->sync($validated['product_ids']);
 
             return ApiResponse::success($series->load('products'), 'Series created successfully');
