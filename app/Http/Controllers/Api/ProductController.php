@@ -53,40 +53,52 @@ class ProductController extends Controller
  * )
  */
 
-    public function store(Request $request)
-    {
-        try {
-            $validated = $request->validate([
-                'name' => 'required|string|max:255',
-                'description' => 'nullable|string',
-                'price' => 'required|numeric',
-                'category_id' => 'required|exists:categories,id',
-                'sizes' => 'nullable|array',
-                'sizes.*.size' => 'required_with:sizes|string|max:50',
-                'sizes.*.stock' => 'required_with:sizes|integer|min:0',
-                'color' => 'nullable|string|max:50',
-                'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
-            ]);
+public function store(Request $request)
+{
+    try {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'price' => 'required|numeric',
+            'category_id' => 'required|exists:categories,id',
+            'color' => 'nullable|string|max:50',
+            'sizes' => 'nullable|array',
+            'sizes.*.size' => 'required_with:sizes|string|max:50',
+            'sizes.*.stock' => 'required_with:sizes|integer|min:0',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
+        ]);
 
-            if ($request->hasFile('image')) {
-                $path = $request->file('image')->store('products', 'public');
-                $validated['image_url'] = asset('storage/' . $path);
-            }
-
-            $product = Product::create($validated);
-
-                    foreach ($validated['sizes'] as $sizeData) {
-                    $product->sizes()->create([
-                        'size' => $sizeData['size'],
-                        'stock' => $sizeData['stock']
-                    ]);
-                }
-
-            return ApiResponse::success($product->load('sizes'), 'Product created successfully', 201);
-        } catch (\Throwable $th) {
-            return ApiResponse::error($th->getMessage(), 500);
+        // Upload gambar
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('products', 'public');
+            $validated['image_url'] = asset('storage/' . $path);
         }
+
+        // Extract sizes
+        $sizes = $validated['sizes'] ?? [];
+        unset($validated['sizes']);
+
+        // Create product
+        $product = Product::create($validated);
+
+        // Insert multiple sizes
+        foreach ($sizes as $sizeData) {
+            $product->sizes()->create([
+                'size' => $sizeData['size'],
+                'stock' => $sizeData['stock']
+            ]);
+        }
+
+        return ApiResponse::success(
+            $product->load('sizes'),
+            'Product created successfully',
+            201
+        );
+
+    } catch (\Throwable $th) {
+        return ApiResponse::error($th->getMessage(), 500);
     }
+}
 
     /**
  * @OA\Get(
