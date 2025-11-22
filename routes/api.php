@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\UploadController;
 use App\Http\Controllers\Api\SeriesController;
+use App\Http\Controllers\Api\ProductSizeController;
 
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -20,6 +21,16 @@ Route::apiResource('products', ProductController::class);
 Route::apiResource('orders', OrderController::class);
 Route::apiResource('series', SeriesController::class);
 
+// Product detail
+Route::get('/products/{id}', [ProductController::class, 'show']);
+
+// Delete product
+Route::delete('/products/{id}', [ProductController::class, 'destroy']);
+
+// Additional routes for product sizes
+Route::post('/product-sizes', [ProductSizeController::class, 'store']);
+Route::put('/product-sizes/{id}', [ProductSizeController::class, 'update']);
+Route::delete('/product-sizes/{id}', [ProductSizeController::class, 'destroy']);
 
 Route::post('/payments', [PaymentController::class, 'store']);
 Route::get('/payments/{id}', [PaymentController::class, 'show']);

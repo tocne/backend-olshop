@@ -121,7 +121,10 @@ public function store(Request $request)
     public function show($id)
     {
         try {
-            $product = Product::with('category')->findOrFail($id);
+            $product = Product::with('category','sizes')->findOrFail($id);
+            if (!$product) {
+                return ApiResponse::error('Product not found', 404);
+            }
             return ApiResponse::success($product, 'Product found');
         } catch (\Throwable $th) {
             return ApiResponse::error('Product not found', 404);
@@ -150,47 +153,27 @@ public function store(Request $request)
  * )
  */
     public function update(Request $request, $id)
-    {
-        try {
-            $product = Product::findOrFail($id);
-            $validated = $request->validate([
-            'name' => 'string|max:255',
-            'description' => 'nullable|string',
-            'price' => 'numeric',
-            'category_id' => 'exists:categories,id',
-            'color' => 'string|max:50',
+{
+    $product = Product::findOrFail($id);
 
-            'sizes' => 'nullable|array',
-            'sizes.*.size' => 'required_with:sizes|string|max:50',
-            'sizes.*.stock' => 'required_with:sizes|integer|min:0',
+    $validated = $request->validate([
+        'name' => 'string|max:255',
+        'description' => 'nullable|string',
+        'price' => 'numeric',
+        'category_id' => 'exists:categories,id',
+        'color' => 'string|max:50',
+        'image' => 'nullable|image|max:2048'
+    ]);
 
-            'image' => 'nullable|image|max:2048'
-        ]);
-
-        if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('products', 'public');
-            $validated['image_url'] = asset('storage/' . $path);
-        }
-
-        $product->update($validated);
-
-        if ($request->has('sizes')) {
-            $product->sizes()->delete();
-            foreach ($validated['sizes'] as $sizeData) {
-                $product->sizes()->create([
-                    'size' => $sizeData['size'],
-                    'stock' => $sizeData['stock']
-                ]);
-            }
-        }
-
-        return ApiResponse::success(
-            $product->load('sizes'),'Product updated successfully');
-
-        } catch (\Throwable $th) {
-            return ApiResponse::error($th->getMessage(), 500);
-        }
+    if ($request->hasFile('image')) {
+        $path = $request->file('image')->store('products', 'public');
+        $validated['image_url'] = asset('storage/' . $path);
     }
+
+    $product->update($validated);
+
+    return ApiResponse::success($product->load('sizes'), 'Product updated');
+}
 
     
 /**
