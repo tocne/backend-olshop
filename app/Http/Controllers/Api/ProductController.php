@@ -20,7 +20,7 @@ class ProductController extends Controller
     public function index()
     {
         try {
-            $products = Product::with('category')->get();
+            $products = Product::with('category','sizes')->get();
             return ApiResponse::success($products, 'All products retrieved');
         } catch (\Throwable $th) {
             return ApiResponse::error($th->getMessage(), 500);
@@ -78,6 +78,9 @@ public function store(Request $request)
         $sizes = $validated['sizes'] ?? [];
         unset($validated['sizes']);
 
+        // Hitung total stock
+        $totalStock = array_sum(array_column($sizes, 'stock'));
+        $validated['stock'] = $totalStock;
         // Create product
         $product = Product::create($validated);
 
