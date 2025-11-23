@@ -187,73 +187,87 @@ public function store(Request $request)
  *     @OA\Response(response=200, description="Product updated")
  * )
  */
-public function update(Request $request, $id)
-{
-    try {
-   
-    $product = Product::with('sizes')->findOrFail($id);
+    public function update(Request $request, $id)
+    {
+        try {
 
-    $validated = $request->validate([
-        'name' => 'string|max:255',
-        'description' => 'nullable|string',
-        'price' => 'numeric',
-        'category_id' => 'exists:categories,id',
-        'color' => 'string|max:50',
-        'image' => 'nullable|image|max:2048',
-        'sizes' => 'nullable|array',
-        'sizes.*.size' => 'required_with:sizes|string|max:50',
-        'sizes.*.stock' => 'required_with:sizes|integer|min:0',
-        'sizes.*.id' => 'nullable|integer'
-    ]);
+            $product = Product::with('sizes')->findOrFail($id);
 
-    // Update image bila ada file baru
-    if ($request->hasFile('image')) {
-        $path = $request->file('image')->store('products', 'public');
-        $validated['image_url'] = asset('storage/' . $path);
-    }
-
-    // Update product utamanya
-    $product->update($validated);
-
-    // ----------------------
-    // UPDATE SIZES
-    // ----------------------
-    $incomingSizes = $request->sizes ?? [];
-
-    // 1) Update atau tambah size baru
-    foreach ($incomingSizes as $s) {
-
-        // update size lama
-        if (!empty($s['id'])) {
-            $product->sizes()->where('id', $s['id'])->update([
-                'size' => $s['size'],
-                'stock' => $s['stock'],
-                'barcode' => $product->product_code . '-' . strtoupper($s['size'])
+            // Validasi setiap field
+            $request->validate([
+                'name' => 'string|max:255',
+                'description' => 'nullable|string',
+                'price' => 'numeric',
+                'category_id' => 'exists:categories,id',
+                'color' => 'nullable|string|max:50',
+                'image' => 'nullable|image|max:2048',
+                'sizes' => 'nullable|array',
+                'sizes.*.id' => 'nullable|integer',
+                'sizes.*.size' => 'nullable|string|max:50',
+                'sizes.*.stock' => 'nullable|integer|min:0',
             ]);
-        }
 
-        // new size
-        else {
-            $product->sizes()->create([
-                'size' => $s['size'],
-                'stock' => $s['stock'],
-                'barcode' => $product->product_code . '-' . strtoupper($s['size'])
-            ]);
-        }
-    }
+            // Update product fields
+            $product->name = $request->name ?? $product->name;
+            $product->description = $request->description ?? $product->description;
+            $product->price = $request->price ?? $product->price;
+            $product->category_id = $request->category_id ?? $product->category_id;
+            $product->color = $request->color ?? $product->color;
 
-    // 2) Hapus size yang tidak dikirim dari frontend
-    $sentIds = collect($incomingSizes)->pluck('id')->filter()->toArray();
+            // Update image jika ada
+            if ($request->hasFile('image')) {
+                $path = $request->file('image')->store('products', 'public');
+                $product->image_url = asset('storage/' . $path);
+            }
 
-    $product->sizes()
-        ->whereNotIn('id', $sentIds)
-        ->delete();
+            $product->save();
 
-    // Hitung total stock baru
-    $product->stock = $product->sizes()->sum('stock');
-    $product->save();
+            // ============================
+            // UPDATE SIZES
+            // ============================
 
-    return ApiResponse::success($product->load('sizes'), "Product updated successfully");
+            $incomingSizes = $request->sizes ?? [];
+
+            $existingIds = $product->sizes->pluck('id')->toArray();
+            $sentIds = [];
+
+            foreach ($incomingSizes as $data) {
+
+                // Kalau size lama → UPDATE
+                if (!empty($data['id'])) {
+                    $sentIds[] = $data['id'];
+
+                    $product->sizes()
+                        ->where('id', $data['id'])
+                        ->update([
+                            'size' => $data['size'],
+                            'stock' => $data['stock'],
+                            'barcode' => $product->product_code . '-' . strtoupper($data['size'])
+                        ]);
+                } 
+                // Size baru → CREATE
+                else {
+                    $newSize = $product->sizes()->create([
+                        'size' => $data['size'],
+                        'stock' => $data['stock'],
+                        'barcode' => $product->product_code . '-' . strtoupper($data['size'])
+                    ]);
+
+                    $sentIds[] = $newSize->id;
+                }
+            }
+
+            // Hapus size yang tidak ada di request
+            $product->sizes()
+                ->whereNotIn('id', $sentIds)
+                ->delete();
+
+            // Update total stock
+            $product->stock = $product->sizes()->sum('stock');
+            $product->save();
+
+            return ApiResponse::success($product->load('sizes'), "Product updated successfully");
+
         } catch (\Throwable $th) {
             return ApiResponse::error($th->getMessage(), 500);
         }
