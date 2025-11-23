@@ -223,50 +223,56 @@ public function store(Request $request)
             $product->save();
 
             // ============================
-            // UPDATE SIZES
-            // ============================
+// UPDATE SIZES
+// ============================
 
-            $incomingSizes = $request->sizes ?? [];
+// Jika frontend tidak kirim sizes → JANGAN ubah sizes
+if (!$request->has('sizes')) {
+    return ApiResponse::success($product->load('sizes'), "Product updated successfully");
+}
 
-            $existingIds = $product->sizes->pluck('id')->toArray();
-            $sentIds = [];
+$incomingSizes = $request->sizes ?? [];
 
-            foreach ($incomingSizes as $data) {
+$existingIds = $product->sizes->pluck('id')->toArray();
+$sentIds = [];
 
-                // Kalau size lama → UPDATE
-                if (!empty($data['id'])) {
-                    $sentIds[] = $data['id'];
+foreach ($incomingSizes as $data) {
 
-                    $product->sizes()
-                        ->where('id', $data['id'])
-                        ->update([
-                            'size' => $data['size'],
-                            'stock' => $data['stock'],
-                            'barcode' => $product->product_code . '-' . strtoupper($data['size'])
-                        ]);
-                } 
-                // Size baru → CREATE
-                else {
-                    $newSize = $product->sizes()->create([
-                        'size' => $data['size'],
-                        'stock' => $data['stock'],
-                        'barcode' => $product->product_code . '-' . strtoupper($data['size'])
-                    ]);
+    // UPDATE size lama
+    if (!empty($data['id'])) {
+        $sentIds[] = $data['id'];
 
-                    $sentIds[] = $newSize->id;
-                }
-            }
+        $product->sizes()
+            ->where('id', $data['id'])
+            ->update([
+                'size' => $data['size'],
+                'stock' => $data['stock'],
+                'barcode' => $product->product_code . '-' . strtoupper($data['size'])
+            ]);
+    } 
+    // CREATE size baru
+    else {
+        $newSize = $product->sizes()->create([
+            'size' => $data['size'],
+            'stock' => $data['stock'],
+            'barcode' => $product->product_code . '-' . strtoupper($data['size'])
+        ]);
 
-            // Hapus size yang tidak ada di request
-            $product->sizes()
-                ->whereNotIn('id', $sentIds)
-                ->delete();
+        $sentIds[] = $newSize->id;
+    }
+}
 
-            // Update total stock
-            $product->stock = $product->sizes()->sum('stock');
-            $product->save();
+// DELETE hanya size yang hilang dari form
+$product->sizes()
+    ->whereNotIn('id', $sentIds)
+    ->delete();
 
-            return ApiResponse::success($product->load('sizes'), "Product updated successfully");
+// Update stock total
+$product->stock = $product->sizes()->sum('stock');
+$product->save();
+
+return ApiResponse::success($product->load('sizes'), "Product updated successfully");
+
 
         } catch (\Throwable $th) {
             return ApiResponse::error($th->getMessage(), 500);
