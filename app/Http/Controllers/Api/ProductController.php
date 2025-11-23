@@ -56,42 +56,76 @@ class ProductController extends Controller
 public function store(Request $request)
 {
     try {
+        // 1️⃣ VALIDATION
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'price' => 'required|numeric',
-            'category_id' => 'required|exists:categories,id',
-            'color' => 'nullable|string|max:50',
-            'sizes' => 'nullable|array',
-            'sizes.*.size' => 'required_with:sizes|string|max:50',
-            'sizes.*.stock' => 'required_with:sizes|integer|min:0',
+            'name'          => 'required|string|max:255',
+            'description'   => 'nullable|string',
+            'price'         => 'required|numeric',
+            'category_id'   => 'required|exists:categories,id',
+            'category_prefix' => 'required|string|max:3',   // PREFIX UNTUK SKU
+            'color'         => 'nullable|string|max:50',
+
+            // Size + stock
+            'sizes'                 => 'nullable|array',
+            'sizes.*.size'          => 'required_with:sizes|string|max:50',
+            'sizes.*.stock'         => 'required_with:sizes|integer|min:0',
+            'category_id'           => 'required|exists:categories,id',
+
+
+            // Image
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
         ]);
 
-        // Upload gambar
+        // 2️⃣ UPLOAD GAMBAR (JIKA ADA)
         if ($request->hasFile('image')) {
             $path = $request->file('image')->store('products', 'public');
             $validated['image_url'] = asset('storage/' . $path);
         }
 
-        // Extract sizes
+        // 3️⃣ EXTRACT SIZES
         $sizes = $validated['sizes'] ?? [];
         unset($validated['sizes']);
 
-        // Hitung total stock
+        // 4️⃣ HITUNG TOTAL STOCK (dari size)
         $totalStock = array_sum(array_column($sizes, 'stock'));
         $validated['stock'] = $totalStock;
-        // Create product
-        $product = Product::create($validated);
 
-        // Insert multiple sizes
-        foreach ($sizes as $sizeData) {
-            $product->sizes()->create([
-                'size' => $sizeData['size'],
-                'stock' => $sizeData['stock']
-            ]);
+        // 5️⃣ AUTO GENERATE SKU (product_code)
+        $prefix = strtoupper($validated['category_prefix']);
+
+        $lastProduct = Product::where('product_code', 'like', $prefix . '%')
+            ->orderBy('product_code', 'desc')
+            ->first();
+
+        if ($lastProduct) {
+            $lastNumber = intval(substr($lastProduct->product_code, strlen($prefix)));
+            $newNumber = str_pad($lastNumber + 1, 3, '0', STR_PAD_LEFT);
+        } else {
+            $newNumber = '001';
         }
 
+        $validated['product_code'] = $prefix . $newNumber;
+
+        unset($validated['category_prefix']); // tidak disimpan di DB
+
+        // 6️⃣ CREATE PRODUCT
+        $product = Product::create($validated);
+
+        // 7️⃣ SIMPAN SIZE-SIZE NYA
+        if (!empty($sizes)) {
+            foreach ($sizes as $sizeData) {
+                $barcode = $validated['product_code'] . '-' . strtoupper($sizeData['size']);
+
+                $product->sizes()->create([
+                    'size' => $sizeData['size'],
+                    'stock' => $sizeData['stock'],
+                    'barcode' => $barcode
+                ]);
+            }
+
+        }
+
+        // 8️⃣ RETURN SUCCESS RESPONSE
         return ApiResponse::success(
             $product->load('sizes'),
             'Product created successfully',
@@ -102,6 +136,7 @@ public function store(Request $request)
         return ApiResponse::error($th->getMessage(), 500);
     }
 }
+
 
     /**
  * @OA\Get(
@@ -174,6 +209,39 @@ public function store(Request $request)
 
     return ApiResponse::success($product->load('sizes'), 'Product updated');
 }
+
+public function addSizeStock(Request $request)
+{
+    $request->validate([
+        'barcode' => 'required',
+        'quantity' => 'required|integer|min:1'
+    ]);
+
+    // Cari size berdasarkan barcode
+    $size = ProductSize::where('barcode', $request->barcode)->first();
+
+    if (!$size) {
+        return ApiResponse::error('Size not found', 404);
+    }
+
+    // Tambah stok size
+    $size->stock += $request->quantity;
+    $size->save();
+
+    // Update stok total produk (sum semua size)
+    $product = $size->product;
+    $product->stock = $product->sizes()->sum('stock');
+    $product->save();
+
+    return ApiResponse::success(
+        [
+            'product' => $product->load('sizes'),
+            'updated_size' => $size
+        ],
+        'Size stock updated successfully'
+    );
+}
+
 
     
 /**

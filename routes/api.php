@@ -25,6 +25,7 @@ Route::apiResource('series', SeriesController::class);
 Route::get('/products/{id}', [ProductController::class, 'show']);
 
 // Delete product
+Route::post('/products/add-size-stock', [ProductController::class, 'addSizeStock']);
 Route::delete('/products/{id}', [ProductController::class, 'destroy']);
 
 // Additional routes for product sizes
