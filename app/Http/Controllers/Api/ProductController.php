@@ -192,13 +192,14 @@ public function store(Request $request)
     $product = Product::findOrFail($id);
 
     $validated = $request->validate([
-        'name' => 'string|max:255',
+        'name' => 'nullable|string|max:255',
         'description' => 'nullable|string',
-        'price' => 'numeric',
-        'category_id' => 'exists:categories,id',
-        'color' => 'string|max:50',
-        'image' => 'nullable|image|max:2048'
+        'price' => 'nullable|numeric',
+        'category_id' => 'nullable|exists:categories,id',
+        'color' => 'nullable|string|max:50',
+        'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
     ]);
+
 
     if ($request->hasFile('image')) {
         $path = $request->file('image')->store('products', 'public');
