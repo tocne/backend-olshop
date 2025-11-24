@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use App\Helpers\ApiResponse;
+use App\Models\ProductSize;
 
 class ProductController extends Controller
 {
@@ -140,19 +141,20 @@ public function store(Request $request)
  *     @OA\Response(response=404, description="Not Found")
  * )
  */
-    public function show($id)
-    {
-        try {
-            Product::with(['category', 'sizes'])->find($id);
+ public function show($id)
+{
+    try {
+        $product = Product::with(['category', 'sizes'])->find($id);
 
-            if (!$product) {
-                return ApiResponse::error('Product not found', 404);
-            }
-            return ApiResponse::success($product, 'Product found');
-        } catch (\Throwable $th) {
+        if (!$product) {
             return ApiResponse::error('Product not found', 404);
         }
+
+        return ApiResponse::success($product, 'Product found');
+    } catch (\Throwable $th) {
+        return ApiResponse::error($th->getMessage(), 500);
     }
+}
 
     /**
  * @OA\Put(
@@ -188,8 +190,6 @@ public function store(Request $request)
                 'category_id' => 'exists:categories,id',
                 'color' => 'nullable|string|max:50',
                 'stock' => 'integer|min:0',
-                'size' => 'string|max:20',
-
                 'image' => 'nullable|image|max:2048'
             ]);
 
