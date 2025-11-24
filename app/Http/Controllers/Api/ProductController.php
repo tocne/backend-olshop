@@ -20,7 +20,7 @@ class ProductController extends Controller
     public function index()
     {
         try {
-            $products = Product::with('category')->get();
+            $products = Product::with(['category', 'sizes'])->get();
             return ApiResponse::success($products, 'All products retrieved');
         } catch (\Throwable $th) {
             return ApiResponse::error($th->getMessage(), 500);
@@ -143,7 +143,8 @@ public function store(Request $request)
     public function show($id)
     {
         try {
-            $product = Product::with('category','sizes')->findOrFail($id);
+            Product::with(['category', 'sizes'])->find($id);
+
             if (!$product) {
                 return ApiResponse::error('Product not found', 404);
             }
