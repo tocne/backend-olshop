@@ -18,6 +18,11 @@ class Product extends Model
     'image_url'
 ];
 
+    public function sizes()
+    {
+        return $this->hasMany(ProductSize::class, 'product_id');
+    }
+
     public function category()
     {
         return $this->belongsTo(Category::class);
