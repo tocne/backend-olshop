@@ -72,13 +72,14 @@ public function store(Request $request)
             'image' => 'nullable|image|max:2048'
         ]);
 
+        // Upload image
+        $image_url = null;
         if ($request->hasFile('image')) {
             $path = $request->file('image')->store('products', 'public');
             $image_url = asset('storage/' . $path);
-        } else {
-            $image_url = null;
         }
 
+        // Generate SKU utama
         $prefix = strtoupper($validated['category_prefix']);
         $last = Product::where('product_code', 'like', $prefix . '%')
             ->orderBy('product_code', 'desc')
@@ -93,31 +94,36 @@ public function store(Request $request)
 
         $skuBase = $prefix . $newNumber;
 
-        $created = [];
+        // Hitung total stok
+        $totalStock = array_sum(array_column($validated['sizes'], 'stock'));
 
+        // Create product utama (tanpa size)
+        $product = Product::create([
+            'name' => $validated['name'],
+            'description' => $validated['description'],
+            'price' => $validated['price'],
+            'category_id' => $validated['category_id'],
+            'color' => $validated['color'],
+            'stock' => $totalStock,
+            'product_code' => $skuBase,
+            'image_url' => $image_url
+        ]);
+
+        // Masukkan size ke tabel product_sizes
         foreach ($validated['sizes'] as $s) {
-            $code = $skuBase . '-' . strtoupper($s['size']);
-
-            $created[] = Product::create([
-                'name' => $validated['name'],
-                'description' => $validated['description'],
-                'price' => $validated['price'],
-                'category_id' => $validated['category_id'],
-                'color' => $validated['color'],
-                'stock' => $s['stock'],
+            $product->sizes()->create([
                 'size' => strtoupper($s['size']),
-                'product_code' => $code,
-                'image_url' => $image_url
+                'stock' => $s['stock'],
+                'barcode' => $skuBase . '-' . strtoupper($s['size'])
             ]);
         }
 
-        return ApiResponse::success($created, 'Products created');
+        return ApiResponse::success($product->load('sizes'), 'Product created successfully');
 
     } catch (\Throwable $e) {
         return ApiResponse::error($e->getMessage(), 500);
     }
 }
-
 
     /**
  * @OA\Get(
