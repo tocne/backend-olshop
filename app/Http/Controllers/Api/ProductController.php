@@ -177,35 +177,95 @@ public function store(Request $request)
  *     @OA\Response(response=200, description="Product updated")
  * )
  */
-    public function update(Request $request, $id)
-    {
-        try {
+ public function update(Request $request, $id)
+{
+    try {
+        $product = Product::with('sizes')->findOrFail($id);
 
-            $product = Product::findOrFail($id);
+        // Validasi produk
+        $validated = $request->validate([
+            'name' => 'string|max:255',
+            'description' => 'nullable|string',
+            'price' => 'numeric',
+            'category_id' => 'exists:categories,id',
+            'color' => 'nullable|string|max:50',
+            'image' => 'nullable|image|max:2048',
 
-            $validated = $request->validate([
-                'name' => 'string|max:255',
-                'description' => 'nullable|string',
-                'price' => 'numeric',
-                'category_id' => 'exists:categories,id',
-                'color' => 'nullable|string|max:50',
-                'stock' => 'integer|min:0',
-                'image' => 'nullable|image|max:2048'
-            ]);
+            // Tambahkan ini:
+            'sizes' => 'array',
+            'sizes.*.id' => 'nullable|integer',
+            'sizes.*.size' => 'required|string|max:20',
+            'sizes.*.stock' => 'required|integer|min:0'
+        ]);
 
-            if ($request->hasFile('image')) {
-                $path = $request->file('image')->store('products', 'public');
-                $validated['image_url'] = asset('storage/' . $path);
-            }
-
-            $product->update($validated);
-
-            return ApiResponse::success($product, 'Product updated');
-
-        } catch (\Throwable $e) {
-            return ApiResponse::error($e->getMessage(), 500);
+        // Update produk utama
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('products', 'public');
+            $validated['image_url'] = asset('storage/' . $path);
         }
+
+        $product->update($validated);
+
+        // Update size (hapus yang hilang, update yang ada, tambah yang baru)
+        $existingSizeIds = $product->sizes->pluck('id')->toArray();
+        $incomingSizeIds = [];
+
+        foreach ($validated['sizes'] ?? [] as $s) {
+
+            // Jika ada id → update
+            if (isset($s['id'])) {
+                $incomingSizeIds[] = $s['id'];
+
+                $product->sizes()->where('id', $s['id'])->update([
+                    'size' => strtoupper($s['size']),
+                    'stock' => $s['stock'],
+                    'barcode' => $product->product_code . '-' . strtoupper($s['size'])
+                ]);
+            } 
+            // Jika tidak ada id → create baru
+            else {
+                $newSize = $product->sizes()->create([
+                    'size' => strtoupper($s['size']),
+                    'stock' => $s['stock'],
+                    'barcode' => $product->product_code . '-' . strtoupper($s['size'])
+                ]);
+
+                $incomingSizeIds[] = $newSize->id;
+            }
+        }
+
+        // Hapus size yang tidak dikirim (size lama yang didelete user)
+        foreach ($existingSizeIds as $oldId) {
+            if (!in_array($oldId, $incomingSizeIds)) {
+                $product->sizes()->where('id', $oldId)->delete();
+            }
+        }
+
+        // Recalculate total stock
+        $product->stock = $product->sizes()->sum('stock');
+        $product->save();
+
+        return ApiResponse::success($product->load('sizes'), 'Product updated successfully');
+
+    } catch (\Throwable $e) {
+        return ApiResponse::error($e->getMessage(), 500);
     }
+}
+    /**
+ * @OA\Post(
+ *     path="/api/products/add-size-stock",
+ *     summary="Add stock to a product size by barcode",
+ *     tags={"Products"},
+ *     @OA\RequestBody(
+ *         required=true,
+ *         @OA\JsonContent(
+ *             @OA\Property(property="barcode", type="string"),
+ *             @OA\Property(property="quantity", type="integer")
+ *         )
+ *     ),
+ *     @OA\Response(response=200, description="Size stock updated")
+ * )
+ */
 
 
 
