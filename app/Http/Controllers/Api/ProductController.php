@@ -65,11 +65,13 @@ public function store(Request $request)
             'category_id' => 'required|exists:categories,id',
             'color' => 'nullable|string|max:50',
             'category_prefix' => 'required|string|max:3',
+
             'stock_type' => 'required|in:ready,po',
             'po_estimate_days' => 'required_if:stock_type,po|nullable|integer|min:1',
             'po_notes' => 'nullable|string',
 
-            'sizes' => 'required_if:stock_type,ready|array|min:1',
+            // SIZE ONLY IF READY
+            'sizes' => 'required_if:stock_type,ready|array',
             'sizes.*.size' => 'required_if:stock_type,ready|string|max:20',
             'sizes.*.stock' => 'required_if:stock_type,ready|integer|min:0',
 
@@ -83,25 +85,24 @@ public function store(Request $request)
             $image_url = asset('storage/' . $path);
         }
 
-        // Generate SKU utama
+        // Generate SKU
         $prefix = strtoupper($validated['category_prefix']);
         $last = Product::where('product_code', 'like', $prefix . '%')
             ->orderBy('product_code', 'desc')
             ->first();
 
-        if ($last) {
-            $lastNumber = intval(substr($last->product_code, strlen($prefix)));
-            $newNumber = str_pad($lastNumber + 1, 3, '0', STR_PAD_LEFT);
-        } else {
-            $newNumber = '001';
-        }
+        $newNumber = $last
+            ? str_pad(intval(substr($last->product_code, strlen($prefix))) + 1, 3, '0', STR_PAD_LEFT)
+            : '001';
 
         $skuBase = $prefix . $newNumber;
 
-        // Hitung total stok
-        $totalStock = array_sum(array_column($validated['sizes'], 'stock'));
+        // Hitung total stok → hanya untuk READY
+        $totalStock = ($validated['stock_type'] === 'ready')
+            ? array_sum(array_column($validated['sizes'], 'stock'))
+            : 0;
 
-        // Create product utama (tanpa size)
+        // Create product
         $product = Product::create([
             'name' => $validated['name'],
             'description' => $validated['description'],
@@ -110,23 +111,30 @@ public function store(Request $request)
             'color' => $validated['color'],
             'stock' => $totalStock,
             'product_code' => $skuBase,
+
             'stock_type' => $validated['stock_type'],
-            'po_estimate_days' => $validated['po_estimate_days'] ?? null,
-            'po_notes' => $validated['po_notes'] ?? null,
+            'po_estimate_days' => $validated['stock_type'] === 'po'
+                ? ($validated['po_estimate_days'] ?? null)
+                : null,
+            'po_notes' => $validated['stock_type'] === 'po'
+                ? ($validated['po_notes'] ?? null)
+                : null,
+
             'image_url' => $image_url
         ]);
 
-        // Masukkan size ke tabel product_sizes
-        foreach ($validated['sizes'] as $s) {
-            $product->sizes()->create([
-                'size' => strtoupper($s['size']),
-                'stock' => $s['stock'],
-                'barcode' => $skuBase . '-' . strtoupper($s['size'])
-            ]);
+        // Insert sizes only if READY
+        if ($validated['stock_type'] === 'ready') {
+            foreach ($validated['sizes'] as $s) {
+                $product->sizes()->create([
+                    'size' => strtoupper($s['size']),
+                    'stock' => $s['stock'],
+                    'barcode' => $skuBase . '-' . strtoupper($s['size'])
+                ]);
+            }
         }
 
         return ApiResponse::success($product->load('sizes'), 'Product created successfully');
-
     } catch (\Throwable $e) {
         return ApiResponse::error($e->getMessage(), 500);
     }
@@ -183,42 +191,45 @@ public function store(Request $request)
  *     @OA\Response(response=200, description="Product updated")
  * )
  */
- public function update(Request $request, $id)
-{
-    try {
-        $product = Product::with('sizes')->findOrFail($id);
+    public function update(Request $request, $id)
+    {
+        try {
+            $product = Product::with('sizes')->findOrFail($id);
 
-        // Validasi produk
-        $validated = $request->validate([
-            'name' => 'string|max:255',
-            'description' => 'nullable|string',
-            'price' => 'numeric',
-            'category_id' => 'exists:categories,id',
-            'color' => 'nullable|string|max:50',
-            'image' => 'nullable|image|max:2048',
+            // Validasi produk
+            $validated = $request->validate([
+                'name' => 'string|max:255',
+                'description' => 'nullable|string',
+                'price' => 'numeric',
+                'category_id' => 'exists:categories,id',
+                'color' => 'nullable|string|max:50',
+                'image' => 'nullable|image|max:2048',
 
-            'stock_type' => 'required|in:ready,po',
-            'po_estimate_days' => 'nullable|integer',
-            'po_notes' => 'nullable|string',
+                'stock_type' => 'required|in:ready,po',
+                'po_estimate_days' => 'nullable|integer',
+                'po_notes' => 'nullable|string',
 
-            // Tambahkan ini:
-            'sizes' => 'required_if:stock_type,ready|array',
-            'sizes.*.id' => 'nullable|integer',
-            'sizes.*.size' => 'required_if:stock_type,ready|string|max:20',
-            'sizes.*.stock' => 'required_if:stock_type,ready|integer|min:0',
-        ]);
+                // Tambahkan ini:
+                'sizes' => 'required_if:stock_type,ready|array',
+                'sizes.*.id' => 'nullable|integer',
+                'sizes.*.size' => 'required_if:stock_type,ready|string|max:20',
+                'sizes.*.stock' => 'required_if:stock_type,ready|integer|min:0',
+            ]);
 
-        // Update produk utama
-        if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('products', 'public');
-            $validated['image_url'] = asset('storage/' . $path);
-        }
+            // Update produk utama
+            if ($request->hasFile('image')) {
+                $path = $request->file('image')->store('products', 'public');
+                $validated['image_url'] = asset('storage/' . $path);
+            }
 
-        $product->update($validated);
+            $product->update($validated);
 
-        // Update size (hapus yang hilang, update yang ada, tambah yang baru)
-        $existingSizeIds = $product->sizes->pluck('id')->toArray();
-        $incomingSizeIds = [];
+            // Update size (hapus yang hilang, update yang ada, tambah yang baru)
+            $existingSizeIds = $product->sizes->pluck('id')->toArray();
+            $incomingSizeIds = [];
+
+    // HANDLE SIZES HANYA JIKA READY STOCK
+    if ($validated['stock_type'] === 'ready') {
 
         foreach ($validated['sizes'] ?? [] as $s) {
 
@@ -230,43 +241,43 @@ public function store(Request $request)
                     'size' => strtoupper($s['size']),
                     'stock' => $s['stock'],
                     'barcode' => $product->product_code . '-' . strtoupper($s['size']),
-                    'stock_type' => $validated['stock_type'],
-                    'po_estimate_days' => $validated['stock_type'] === 'po'
-                    ? ($validated['po_estimate_days'] ?? null): null,
-                    'po_notes' => $validated['stock_type'] === 'po'
-                    ? ($validated['po_notes'] ?? null)
-                    : null,
                 ]);
-            } 
-            // Jika tidak ada id → create baru
+            }
+
+            // Jika id tidak ada → create size baru
             else {
-                $newSize = $product->sizes()->create([
+                $new = $product->sizes()->create([
                     'size' => strtoupper($s['size']),
                     'stock' => $s['stock'],
-                    'barcode' => $product->product_code . '-' . strtoupper($s['size'])
+                    'barcode' => $product->product_code . '-' . strtoupper($s['size']),
                 ]);
 
-                $incomingSizeIds[] = $newSize->id;
+                $incomingSizeIds[] = $new->id;
             }
         }
 
-        // Hapus size yang tidak dikirim (size lama yang didelete user)
-        foreach ($existingSizeIds as $oldId) {
-            if (!in_array($oldId, $incomingSizeIds)) {
-                $product->sizes()->where('id', $oldId)->delete();
-            }
-        }
-
-        // Recalculate total stock
-        $product->stock = $product->sizes()->sum('stock');
-        $product->save();
-
-        return ApiResponse::success($product->load('sizes'), 'Product updated successfully');
-
-    } catch (\Throwable $e) {
-        return ApiResponse::error($e->getMessage(), 500);
+        // Hapus size yang tidak ada di update
+        $product->sizes()->whereNotIn('id', $incomingSizeIds)->delete();
     }
-}
+
+
+            // Hapus size yang tidak dikirim (size lama yang didelete user)
+            foreach ($existingSizeIds as $oldId) {
+                if (!in_array($oldId, $incomingSizeIds)) {
+                    $product->sizes()->where('id', $oldId)->delete();
+                }
+            }
+
+            // Recalculate total stock
+            $product->stock = $product->sizes()->sum('stock');
+            $product->save();
+
+            return ApiResponse::success($product->load('sizes'), 'Product updated successfully');
+
+        } catch (\Throwable $e) {
+            return ApiResponse::error($e->getMessage(), 500);
+        }
+    }
     /**
  * @OA\Post(
  *     path="/api/products/add-size-stock",
