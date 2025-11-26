@@ -12,17 +12,14 @@ return new class extends Migration
     public function up()
     {
         Schema::table('products', function (Blueprint $table) {
-            $table->string('image_url')->nullable()->after('stock');
+            $table->decimal('price', 12, 0)->change();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down()
     {
         Schema::table('products', function (Blueprint $table) {
-            $table->dropColumn('image_url');
+            $table->decimal('price', 10, 2)->change();
         });
     }
 };

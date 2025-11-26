@@ -3,23 +3,26 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Product extends Model
 {
-   protected $fillable = [
-    'name',
-    'description',
-    'price',
-    'category_id',
-    'color',
-    'stock',
-    'stock_type',        
-    'po_estimate_days',
-    'po_notes', 
-    'product_code',
-    'image_url'
-];
+    protected $fillable = [
+        'name',
+        'description',
+        'price',
+        'category_id',
+        'color',
+        'stock',
+        'stock_type',
+        'po_estimate_days',
+        'po_notes',
+        'product_code',
+        'image_url',
+    ];
+
+    protected $casts = [
+        'price' => 'integer',
+    ];
 
     public function scopePo($query)
     {

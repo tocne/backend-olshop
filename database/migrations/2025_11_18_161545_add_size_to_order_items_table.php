@@ -9,19 +9,20 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-public function up()
-{
-    Schema::table('order_items', function (Blueprint $table) {
-        $table->string('size', 50)->nullable()->after('product_id');
-    });
-}
+    public function up()
+    {
+        Schema::table('order_items', function (Blueprint $table) {
+            $table->string('size', 50)->nullable()->after('product_id');
+        });
+    }
+
     /**
      * Reverse the migrations.
      */
-public function down()
-{
-    Schema::table('order_items', function (Blueprint $table) {
-        $table->dropColumn('size');
-    });
-}
+    public function down()
+    {
+        Schema::table('order_items', function (Blueprint $table) {
+            $table->dropColumn('size');
+        });
+    }
 };

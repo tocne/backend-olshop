@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use Illuminate\Http\Request;
-use App\Helpers\ApiResponse;
 
 class CategoryController extends Controller
 {
@@ -16,7 +16,7 @@ class CategoryController extends Controller
         } catch (\Throwable $th) {
             return ApiResponse::error($th->getMessage(), 500);
         }
-        
+
     }
 
     public function store(Request $request)
@@ -24,24 +24,26 @@ class CategoryController extends Controller
 
         try {
             $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'prefix' => 'required|string|max:5'
+                'name' => 'required|string|max:255',
+                'prefix' => 'required|string|max:5',
             ]);
 
-        $category = Category::create($validated);
-        return ApiResponse::success($category, 'Category created successfully');
+            $category = Category::create($validated);
+
+            return ApiResponse::success($category, 'Category created successfully');
         } catch (\Throwable $th) {
             return ApiResponse::error($th->getMessage(), 500);
         }
-        
+
     }
 
     public function show($id)
     {
         try {
             $category = Category::findOrFail($id);
+
             return ApiResponse::success($category, 'Category retrieved');
-            
+
         } catch (\Throwable $th) {
             return ApiResponse::error($th->getMessage(), 500);
         }
@@ -68,6 +70,6 @@ class CategoryController extends Controller
             return ApiResponse::success(null, 'Category deleted successfully');
         } catch (\Throwable $th) {
             return ApiResponse::error($th->getMessage(), 500);
-        }     
+        }
     }
 }

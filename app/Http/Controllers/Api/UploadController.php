@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Helpers\ApiResponse;  
 
 class UploadController extends Controller
 {
@@ -16,7 +16,7 @@ class UploadController extends Controller
             ]);
 
             $path = $request->file('image')->store('products', 'public');
-            $url = asset('storage/' . $path);
+            $url = asset('storage/'.$path);
 
             return ApiResponse::success(
                 ['url' => $url],

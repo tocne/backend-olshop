@@ -2,24 +2,24 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Product;
 use Illuminate\Http\Request;
-use App\Helpers\ApiResponse;
 
 class OrderController extends Controller
 {
-    
     /**
- * @OA\Get(
- *     path="/api/orders",
- *     summary="Get list of orders",
- *     tags={"Orders"},
- *     @OA\Response(response=200, description="OK")
- * )
- */
-        public function index(Request $request)
+     * @OA\Get(
+     *     path="/api/orders",
+     *     summary="Get list of orders",
+     *     tags={"Orders"},
+     *
+     *     @OA\Response(response=200, description="OK")
+     * )
+     */
+    public function index(Request $request)
     {
         try {
             $orders = Order::with('items.product', 'items.series')
@@ -32,15 +32,17 @@ class OrderController extends Controller
             return ApiResponse::error($th->getMessage(), 500);
         }
     }
-    
-    //store method
+
+    // store method
     /**
      * @OA\Post(
      *    path="/api/orders",
      *    summary="Create order with product sizes",
      *    tags={"Orders"},
+     *
      *    @OA\RequestBody(
      *       required=true,
+     *
      *       @OA\JsonContent(
      *          example={
      *             "user_id": 1,
@@ -50,10 +52,10 @@ class OrderController extends Controller
      *          }
      *       )
      *    ),
+     *
      *    @OA\Response(response=201, description="Order created")
      * )
      */
-
     public function store(Request $request)
     {
         try {
@@ -73,7 +75,7 @@ class OrderController extends Controller
 
                 $sizeData = $product->sizes()->where('size', $item['size'])->first();
 
-                if (!$sizeData) {
+                if (! $sizeData) {
                     return ApiResponse::error(
                         "Size {$item['size']} tidak tersedia untuk produk {$product->name}",
                         400
@@ -91,15 +93,13 @@ class OrderController extends Controller
                 $totalPrice += $product->price * $item['quantity'];
             }
 
-
             // Buat order
             $order = Order::create([
                 'user_id' => $validated['user_id'],
                 'total_price' => $totalPrice,
                 'status' => 'pending',
-                'order_type' => 'product_size'
+                'order_type' => 'product_size',
             ]);
-
 
             // Simpan order items
             foreach ($validated['items'] as $item) {
@@ -109,10 +109,10 @@ class OrderController extends Controller
 
                 $order->items()->create([
                     'product_id' => $product->id,
-                    'size'       => $item['size'],
-                    'quantity'   => $item['quantity'],
-                    'price'      => $product->price,
-                    'stock_type' => $product->stock_type   // ⭐ NEW
+                    'size' => $item['size'],
+                    'quantity' => $item['quantity'],
+                    'price' => $product->price,
+                    'stock_type' => $product->stock_type,   // ⭐ NEW
                 ]);
 
                 // Hanya kurangi stok jika READY STOCK
@@ -120,7 +120,6 @@ class OrderController extends Controller
                     $sizeData->decrement('stock', $item['quantity']);
                 }
             }
-
 
             return ApiResponse::success(
                 $order->load('items.product'),
@@ -133,17 +132,18 @@ class OrderController extends Controller
         }
     }
 
-
-/**
- * @OA\Put(
- *     path="/api/orders/{id}/ship",
- *     summary="Mark order as shipped",
- *     tags={"Orders"},
- *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
- *     @OA\Response(response=200, description="Order shipped")
- * )
- */
-public function ship($id)
+    /**
+     * @OA\Put(
+     *     path="/api/orders/{id}/ship",
+     *     summary="Mark order as shipped",
+     *     tags={"Orders"},
+     *
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *
+     *     @OA\Response(response=200, description="Order shipped")
+     * )
+     */
+    public function ship($id)
     {
         try {
             $order = Order::with('items.product')->findOrFail($id);
@@ -167,17 +167,18 @@ public function ship($id)
         }
     }
 
-
     /**
- * @OA\Put(
- *     path="/api/orders/{id}/complete",
- *     summary="Mark order as complete",
- *     tags={"Orders"},
- *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
- *     @OA\Response(response=200, description="Order completed")
- * )
- */
-     public function complete($id)
+     * @OA\Put(
+     *     path="/api/orders/{id}/complete",
+     *     summary="Mark order as complete",
+     *     tags={"Orders"},
+     *
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *
+     *     @OA\Response(response=200, description="Order completed")
+     * )
+     */
+    public function complete($id)
     {
         try {
             $order = Order::findOrFail($id);
@@ -198,29 +199,33 @@ public function ship($id)
         }
     }
 
-/**
- * @OA\Get(
- *     path="/api/orders/{order}",
- *     summary="Get order by ID",
- *     tags={"Orders"},
- *     @OA\Parameter(
- *         name="order",
- *         in="path",
- *         required=true,
- *         @OA\Schema(type="integer")
- *     ),
- *     @OA\Response(response=200, description="OK"),
- *     @OA\Response(response=404, description="Not Found")
- * )
- */
+    /**
+     * @OA\Get(
+     *     path="/api/orders/{order}",
+     *     summary="Get order by ID",
+     *     tags={"Orders"},
+     *
+     *     @OA\Parameter(
+     *         name="order",
+     *         in="path",
+     *         required=true,
+     *
+     *         @OA\Schema(type="integer")
+     *     ),
+     *
+     *     @OA\Response(response=200, description="OK"),
+     *     @OA\Response(response=404, description="Not Found")
+     * )
+     */
     public function show($id)
-        {
-            try {
-                $order = Order::with('items.product', 'user')->findOrFail($id);
-                return ApiResponse::success($order, 'Order detail retrieved');
+    {
+        try {
+            $order = Order::with('items.product', 'user')->findOrFail($id);
 
-            } catch (\Throwable $th) {
-                return ApiResponse::error('Order not found', 404);
-            }
+            return ApiResponse::success($order, 'Order detail retrieved');
+
+        } catch (\Throwable $th) {
+            return ApiResponse::error('Order not found', 404);
         }
     }
+}

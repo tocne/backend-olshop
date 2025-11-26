@@ -8,13 +8,14 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
-     */ 
+     */
     public function up()
     {
         Schema::table('products', function (Blueprint $table) {
             $table->string('color')->nullable()->after('category_id');
         });
     }
+
     /**
      * Reverse the migrations.
      */
@@ -24,5 +25,4 @@ return new class extends Migration
             $table->dropColumn('color');
         });
     }
-
 };

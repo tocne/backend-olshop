@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
-use App\Models\ProductSize;
-use App\Models\Product;
-use Illuminate\Http\Request;
 use App\Helpers\ApiResponse;
+use App\Http\Controllers\Controller;
+use App\Models\Product;
+use App\Models\ProductSize;
+use Illuminate\Http\Request;
 
 class ProductSizeController extends Controller
 {
@@ -18,7 +18,7 @@ class ProductSizeController extends Controller
         $validated = $request->validate([
             'product_id' => 'required|exists:products,id',
             'size' => 'required|string|max:50',
-            'stock' => 'required|integer|min:0'
+            'stock' => 'required|integer|min:0',
         ]);
 
         // Create size
@@ -27,7 +27,7 @@ class ProductSizeController extends Controller
         // Update total stock on product
         $this->updateProductTotalStock($validated['product_id']);
 
-        return ApiResponse::success($size, "Size added successfully");
+        return ApiResponse::success($size, 'Size added successfully');
     }
 
     /**
@@ -37,13 +37,13 @@ class ProductSizeController extends Controller
     {
         $size = ProductSize::find($id);
 
-        if (!$size) {
-            return ApiResponse::error("Size not found", 404);
+        if (! $size) {
+            return ApiResponse::error('Size not found', 404);
         }
 
         $validated = $request->validate([
             'size' => 'required|string|max:50',
-            'stock' => 'required|integer|min:0'
+            'stock' => 'required|integer|min:0',
         ]);
 
         // Update size
@@ -52,7 +52,7 @@ class ProductSizeController extends Controller
         // Update total stock on product
         $this->updateProductTotalStock($size->product_id);
 
-        return ApiResponse::success($size, "Size updated successfully");
+        return ApiResponse::success($size, 'Size updated successfully');
     }
 
     /**
@@ -62,8 +62,8 @@ class ProductSizeController extends Controller
     {
         $size = ProductSize::find($id);
 
-        if (!$size) {
-            return ApiResponse::error("Size not found", 404);
+        if (! $size) {
+            return ApiResponse::error('Size not found', 404);
         }
 
         $productId = $size->product_id;
@@ -73,7 +73,7 @@ class ProductSizeController extends Controller
         // Update total stock on product
         $this->updateProductTotalStock($productId);
 
-        return ApiResponse::success(null, "Size deleted successfully");
+        return ApiResponse::success(null, 'Size deleted successfully');
     }
 
     /**

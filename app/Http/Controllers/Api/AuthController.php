@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
-use App\Models\User;
 
 class AuthController extends Controller
 {
@@ -15,15 +15,19 @@ class AuthController extends Controller
      *     path="/api/register",
      *     summary="Register user baru",
      *     tags={"Auth"},
+     *
      *     @OA\RequestBody(
      *         required=true,
+     *
      *         @OA\JsonContent(
      *             required={"name","email","password"},
+     *
      *             @OA\Property(property="name", type="string", example="Budi"),
      *             @OA\Property(property="email", type="string", example="budi@example.com"),
      *             @OA\Property(property="password", type="string", example="password123")
      *         )
      *     ),
+     *
      *     @OA\Response(
      *         response=201,
      *         description="User registered successfully"
@@ -53,20 +57,24 @@ class AuthController extends Controller
             'user' => $user,
         ], 201);
     }
-    
+
     /**
      * @OA\Post(
      *     path="/api/login",
      *     summary="Login user",
      *     tags={"Auth"},
+     *
      *     @OA\RequestBody(
      *         required=true,
+     *
      *         @OA\JsonContent(
      *             required={"email","password"},
+     *
      *             @OA\Property(property="email", type="string", example="budi@example.com"),
      *             @OA\Property(property="password", type="string", example="password123")
      *         )
      *     ),
+     *
      *     @OA\Response(
      *         response=200,
      *         description="Login successful"
@@ -97,10 +105,9 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Login successful',
             'token' => $token,
-            'user' => $user
+            'user' => $user,
         ]);
     }
-
 
     /**
      * @OA\Post(
@@ -108,6 +115,7 @@ class AuthController extends Controller
      *     summary="Logout user",
      *     security={{"bearerAuth":{}}},
      *     tags={"Auth"},
+     *
      *     @OA\Response(
      *         response=200,
      *         description="Logout berhasil"
@@ -121,13 +129,13 @@ class AuthController extends Controller
         return response()->json(['message' => 'Logout berhasil!']);
     }
 
-
     /**
      * @OA\Get(
      *     path="/api/me",
      *     summary="Ambil data user login",
      *     security={{"bearerAuth":{}}},
      *     tags={"Auth"},
+     *
      *     @OA\Response(
      *         response=200,
      *         description="Data user login"
@@ -139,4 +147,3 @@ class AuthController extends Controller
         return response()->json($request->user());
     }
 }
-

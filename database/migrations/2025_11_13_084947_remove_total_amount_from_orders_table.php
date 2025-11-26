@@ -9,14 +9,15 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-public function up(): void
-{
-    Schema::table('orders', function (Blueprint $table) {
-        if (Schema::hasColumn('orders', 'total_amount')) {
-            $table->dropColumn('total_amount');
-        }
-    });
-}
+    public function up(): void
+    {
+        Schema::table('orders', function (Blueprint $table) {
+            if (Schema::hasColumn('orders', 'total_amount')) {
+                $table->dropColumn('total_amount');
+            }
+        });
+    }
+
     /**
      * Reverse the migrations.
      */

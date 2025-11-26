@@ -16,6 +16,7 @@ return new class extends Migration
             // $table->integer('stock')->default(0)->after('price');
         });
     }
+
     /**
      * Reverse the migrations.
      */
@@ -25,5 +26,4 @@ return new class extends Migration
             $table->dropColumn(['product_code', 'stock']);
         });
     }
-
 };

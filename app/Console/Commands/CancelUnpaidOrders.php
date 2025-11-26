@@ -2,9 +2,8 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\Order;
-use Carbon\Carbon;
+use Illuminate\Console\Command;
 
 class CancelUnpaidOrders extends Command
 {
@@ -41,6 +40,6 @@ class CancelUnpaidOrders extends Command
             $order->update(['status' => 'cancelled']);
         }
 
-        $this->info(count($expiredOrders) . ' order dibatalkan otomatis.');
+        $this->info(count($expiredOrders).' order dibatalkan otomatis.');
     }
 }

@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::table('orders', function (Blueprint $table) {
             $table->enum('order_type', ['suka_suka', 'seri', 'normal'])
-            ->default('suka_suka')
-            ->after('status');
+                ->default('suka_suka')
+                ->after('status');
         });
     }
 
