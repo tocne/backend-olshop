@@ -65,6 +65,9 @@ public function store(Request $request)
             'category_id' => 'required|exists:categories,id',
             'color' => 'nullable|string|max:50',
             'category_prefix' => 'required|string|max:3',
+            'stock_type' => 'required|in:ready,po',
+            'po_estimate_days' => 'required_if:stock_type,po|nullable|integer|min:1',
+            'po_notes' => 'nullable|string',
 
             'sizes' => 'required|array|min:1',
             'sizes.*.size' => 'required|string|max:20',
@@ -107,6 +110,9 @@ public function store(Request $request)
             'color' => $validated['color'],
             'stock' => $totalStock,
             'product_code' => $skuBase,
+            'stock_type' => $validated['stock_type'],
+            'po_estimate_days' => $validated['po_estimate_days'] ?? null,
+            'po_notes' => $validated['po_notes'] ?? null,
             'image_url' => $image_url
         ]);
 
@@ -191,6 +197,10 @@ public function store(Request $request)
             'color' => 'nullable|string|max:50',
             'image' => 'nullable|image|max:2048',
 
+            'stock_type' => 'required|in:ready,po',
+            'po_estimate_days' => 'nullable|integer',
+            'po_notes' => 'nullable|string',
+
             // Tambahkan ini:
             'sizes' => 'array',
             'sizes.*.id' => 'nullable|integer',
@@ -219,7 +229,13 @@ public function store(Request $request)
                 $product->sizes()->where('id', $s['id'])->update([
                     'size' => strtoupper($s['size']),
                     'stock' => $s['stock'],
-                    'barcode' => $product->product_code . '-' . strtoupper($s['size'])
+                    'barcode' => $product->product_code . '-' . strtoupper($s['size']),
+                    'stock_type' => $validated['stock_type'],
+                    'po_estimate_days' => $validated['stock_type'] === 'po'
+                    ? ($validated['po_estimate_days'] ?? null): null,
+                    'po_notes' => $validated['stock_type'] === 'po'
+                    ? ($validated['po_notes'] ?? null)
+                    : null,
                 ]);
             } 
             // Jika tidak ada id → create baru
