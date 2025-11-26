@@ -14,9 +14,22 @@ class Product extends Model
     'category_id',
     'color',
     'stock',
+    'stock_type',        
+    'po_estimate_days',
+    'po_notes', 
     'product_code',
     'image_url'
 ];
+
+    public function scopePo($query)
+    {
+        return $query->where('stock_type', 'po');
+    }
+
+    public function scopeReady($query)
+    {
+        return $query->where('stock_type', 'ready');
+    }
 
     public function sizes()
     {

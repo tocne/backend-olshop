@@ -19,17 +19,18 @@ class OrderController extends Controller
  *     @OA\Response(response=200, description="OK")
  * )
  */
-    public function index()
+        public function index(Request $request)
     {
         try {
             $orders = Order::with('items.product', 'items.series')
-            ->where('user_id', $request->user()->id)->get();
+                ->where('user_id', $request->user()->id)
+                ->get();
+
             return ApiResponse::success($orders, 'All orders retrieved');
 
         } catch (\Throwable $th) {
             return ApiResponse::error($th->getMessage(), 500);
         }
-
     }
     
     //store method
@@ -67,11 +68,10 @@ class OrderController extends Controller
             $totalPrice = 0;
 
             foreach ($validated['items'] as $item) {
+
                 $product = Product::findOrFail($item['product_id']);
 
-                $sizeData = $product->sizes()
-                                    ->where('size', $item['size'])
-                                    ->first();
+                $sizeData = $product->sizes()->where('size', $item['size'])->first();
 
                 if (!$sizeData) {
                     return ApiResponse::error(
@@ -80,7 +80,8 @@ class OrderController extends Controller
                     );
                 }
 
-                if ($sizeData->stock < $item['quantity']) {
+                // Cek stok HANYA untuk ready stock
+                if ($product->stock_type === 'ready' && $sizeData->stock < $item['quantity']) {
                     return ApiResponse::error(
                         "Stok size {$item['size']} tidak mencukupi. Sisa: {$sizeData->stock}",
                         400
@@ -90,6 +91,8 @@ class OrderController extends Controller
                 $totalPrice += $product->price * $item['quantity'];
             }
 
+
+            // Buat order
             $order = Order::create([
                 'user_id' => $validated['user_id'],
                 'total_price' => $totalPrice,
@@ -97,20 +100,27 @@ class OrderController extends Controller
                 'order_type' => 'product_size'
             ]);
 
-            foreach ($validated['items'] as $item) {
-                $product = Product::findOrFail($item['product_id']);
 
+            // Simpan order items
+            foreach ($validated['items'] as $item) {
+
+                $product = Product::findOrFail($item['product_id']);
                 $sizeData = $product->sizes()->where('size', $item['size'])->first();
 
                 $order->items()->create([
                     'product_id' => $product->id,
-                    'size' => $item['size'],
-                    'quantity' => $item['quantity'],
-                    'price' => $product->price
+                    'size'       => $item['size'],
+                    'quantity'   => $item['quantity'],
+                    'price'      => $product->price,
+                    'stock_type' => $product->stock_type   // ⭐ NEW
                 ]);
 
-                $sizeData->decrement('stock', $item['quantity']);
+                // Hanya kurangi stok jika READY STOCK
+                if ($product->stock_type === 'ready') {
+                    $sizeData->decrement('stock', $item['quantity']);
+                }
             }
+
 
             return ApiResponse::success(
                 $order->load('items.product'),
@@ -133,12 +143,11 @@ class OrderController extends Controller
  *     @OA\Response(response=200, description="Order shipped")
  * )
  */
-    public function ship($id)
+public function ship($id)
     {
         try {
-            $order = Order::findOrFail($id);
+            $order = Order::with('items.product')->findOrFail($id);
 
-            // Validasi status
             if ($order->status !== 'paid') {
                 return ApiResponse::error(
                     'Hanya order dengan status paid yang dapat dikirim.',
@@ -148,12 +157,16 @@ class OrderController extends Controller
 
             $order->update(['status' => 'shipped']);
 
+            // Load ulang agar response lengkap
+            $order->load('items.product');
+
             return ApiResponse::success($order, 'Pesanan telah dikirim.');
 
         } catch (\Throwable $th) {
             return ApiResponse::error($th->getMessage(), 500);
         }
     }
+
 
     /**
  * @OA\Put(
@@ -164,22 +177,21 @@ class OrderController extends Controller
  *     @OA\Response(response=200, description="Order completed")
  * )
  */
-    public function complete($id)
+     public function complete($id)
     {
         try {
             $order = Order::findOrFail($id);
 
-            // Validasi urutan status
             if ($order->status !== 'shipped') {
                 return ApiResponse::error(
                     'Hanya order dengan status shipped yang dapat diselesaikan.',
                     400
-            );
-        }
+                );
+            }
 
-        // Update status jadi completed
-        $order->update(['status' => 'completed']);
-        return ApiResponse::success($order, 'Pesanan telah selesai.');
+            $order->update(['status' => 'completed']);
+
+            return ApiResponse::success($order, 'Pesanan telah selesai.');
 
         } catch (\Throwable $th) {
             return ApiResponse::error($th->getMessage(), 500);
@@ -202,12 +214,13 @@ class OrderController extends Controller
  * )
  */
     public function show($id)
-    {
-        try {
-             $order = Order::with('items.product', 'user')->findOrFail($id);
-             return ApiResponse::success($order, 'Order detail retrieved');
-        } catch (\Throwable $th) {
-            return ApiResponse::error('Order not found', 404);
+        {
+            try {
+                $order = Order::with('items.product', 'user')->findOrFail($id);
+                return ApiResponse::success($order, 'Order detail retrieved');
+
+            } catch (\Throwable $th) {
+                return ApiResponse::error('Order not found', 404);
+            }
         }
-    }    
-}
+    }
