@@ -69,9 +69,9 @@ public function store(Request $request)
             'po_estimate_days' => 'required_if:stock_type,po|nullable|integer|min:1',
             'po_notes' => 'nullable|string',
 
-            'sizes' => 'required|array|min:1',
-            'sizes.*.size' => 'required|string|max:20',
-            'sizes.*.stock' => 'required|integer|min:0',
+            'sizes' => 'required_if:stock_type,ready|array|min:1',
+            'sizes.*.size' => 'required_if:stock_type,ready|string|max:20',
+            'sizes.*.stock' => 'required_if:stock_type,ready|integer|min:0',
 
             'image' => 'nullable|image|max:2048'
         ]);
@@ -202,10 +202,10 @@ public function store(Request $request)
             'po_notes' => 'nullable|string',
 
             // Tambahkan ini:
-            'sizes' => 'array',
+            'sizes' => 'required_if:stock_type,ready|array',
             'sizes.*.id' => 'nullable|integer',
-            'sizes.*.size' => 'required|string|max:20',
-            'sizes.*.stock' => 'required|integer|min:0'
+            'sizes.*.size' => 'required_if:stock_type,ready|string|max:20',
+            'sizes.*.stock' => 'required_if:stock_type,ready|integer|min:0',
         ]);
 
         // Update produk utama
