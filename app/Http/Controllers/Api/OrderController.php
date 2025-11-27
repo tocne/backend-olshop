@@ -163,6 +163,23 @@ class OrderController extends Controller
         }
     }
 
+    public function markAsPaid($id)
+{
+    try {
+        $order = Order::findOrFail($id);
+
+        if ($order->status !== 'pending') {
+            return ApiResponse::error('Only pending orders can be marked as paid.', 400);
+        }
+
+        $order->update(['status' => 'paid']);
+
+        return ApiResponse::success($order, 'Order marked as paid.');
+    } catch (\Throwable $th) {
+        return ApiResponse::error($th->getMessage(), 500);
+    }
+}
+
     /**
      * @OA\Put(
      *     path="/api/orders/{id}/ship",
@@ -177,7 +194,7 @@ class OrderController extends Controller
     public function ship($id)
     {
         try {
-            $order = Order::with('items.product')->findOrFail($id);
+            $order = Order::findOrFail($id);
 
             if ($order->status !== 'paid') {
                 return ApiResponse::error(
