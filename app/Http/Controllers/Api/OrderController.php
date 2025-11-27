@@ -51,6 +51,19 @@ class OrderController extends Controller
         }
     }
 
+    public function showByCode($code)
+    {
+        try {
+            $order = Order::with(['items.product', 'user'])
+                ->where('order_code', $code)
+                ->firstOrFail();
+
+            return ApiResponse::success($order, 'Order detail retrieved');
+        } catch (\Throwable $th) {
+            return ApiResponse::error('Order not found', 404);
+        }
+    }
+
     // store method
     /**
      * @OA\Post(

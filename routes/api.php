@@ -27,7 +27,9 @@ Route::get('/products/{id}', [ProductController::class, 'show']);
 // Delete product
 Route::post('/products/add-size-stock', [ProductController::class, 'addSizeStock']);
 Route::delete('/products/{id}', [ProductController::class, 'destroy']);
+// Order detail
 
+Route::get('/orders/code/{order_code}', [OrderController::class, 'showByCode']);
 // Additional routes for product sizes
 Route::post('/product-sizes', [ProductSizeController::class, 'store']);
 Route::put('/product-sizes/{id}', [ProductSizeController::class, 'update']);
