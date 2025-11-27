@@ -36,6 +36,8 @@ Route::get('/payments/{id}', [PaymentController::class, 'show']);
 Route::put('/orders/{id}/ship', [OrderController::class, 'ship']);
 Route::put('/orders/{id}/complete', [OrderController::class, 'complete']);
 Route::post('/upload', [UploadController::class, 'store']);
+Route::post('/checkout', [CheckoutController::class, 'checkout']);
+
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
