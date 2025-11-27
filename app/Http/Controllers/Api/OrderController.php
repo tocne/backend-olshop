@@ -221,9 +221,8 @@ class OrderController extends Controller
     {
         try {
             $order = Order::with('items.product', 'user')
-              ->where('order_code', $id)
-              ->firstOrFail();
-
+                ->where('order_code', $id)
+                ->firstOrFail();
 
             return ApiResponse::success($order, 'Order detail retrieved');
 

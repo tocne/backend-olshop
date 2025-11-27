@@ -54,6 +54,7 @@ class CheckoutController extends Controller
 
         // 3. SIMPAN ORDER
         $order = Order::create([
+            'order_code' => Order::generateOrderCode(),
             'user_id' => $user ? $user->id : null,
             'customer_name' => $customerName,
             'customer_phone' => $customerPhone,
