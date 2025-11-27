@@ -78,7 +78,8 @@ class CheckoutController extends Controller
         return response()->json([
             'status' => true,
             'message' => 'Order berhasil dibuat',
-            'order_id' => $order->id,
+            'order_code' => $order->order_code,
         ]);
+
     }
 }

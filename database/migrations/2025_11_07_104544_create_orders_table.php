@@ -13,27 +13,11 @@ return new class extends Migration
     {
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
-
-            // Member → terisi | Guest → null
-            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('cascade');
-
-            // Guest checkout → terisi | Member → boleh null
-            $table->string('customer_name')->nullable();
-            $table->string('customer_phone')->nullable();
-            $table->text('address')->nullable();
-
-            // Catatan tambahan dari guest/member
-            $table->text('notes')->nullable();
-
-            // Total harga dari front-end
-            $table->integer('subtotal')->default(0);
-
-            // pending, paid, shipped, delivered, cancelled
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->decimal('total_price', 10, 2);
             $table->string('status')->default('pending');
-
             $table->timestamps();
         });
-
     }
 
     /**

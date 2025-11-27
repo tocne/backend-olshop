@@ -11,18 +11,16 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::table('order_items', function (Blueprint $table) {
-            $table->string('size', 50)->nullable()->after('product_id');
+        Schema::table('orders', function (Blueprint $table) {
+            // Tambahkan kolom nullable dulu supaya aman
+            $table->string('order_code')->nullable()->after('id');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down()
     {
-        Schema::table('order_items', function (Blueprint $table) {
-            $table->dropColumn('size');
+        Schema::table('orders', function (Blueprint $table) {
+            $table->dropColumn('order_code');
         });
     }
 };

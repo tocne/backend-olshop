@@ -10,13 +10,14 @@ class Order extends Model
     use HasFactory;
 
     protected $fillable = [
+        'order_code',
         'user_id',
         'customer_name',
         'customer_phone',
         'address',
         'notes',
         'subtotal',
-        'status'
+        'status',
     ];
 
     public function user()
@@ -27,6 +28,11 @@ class Order extends Model
     public function items()
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public static function generateOrderCode()
+    {
+        return 'ORD-'.now()->format('Ymd').'-'.rand(1000, 9999);
     }
 
     public function products()
