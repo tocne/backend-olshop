@@ -220,7 +220,10 @@ class OrderController extends Controller
     public function show($id)
     {
         try {
-            $order = Order::with('items.product', 'user')->findOrFail($id);
+            $order = Order::with('items.product', 'user')
+              ->where('order_code', $id)
+              ->firstOrFail();
+
 
             return ApiResponse::success($order, 'Order detail retrieved');
 
