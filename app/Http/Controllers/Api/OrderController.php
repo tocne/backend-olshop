@@ -22,12 +22,30 @@ class OrderController extends Controller
     public function index(Request $request)
     {
         try {
-            $orders = Order::with('items.product', 'items.series')
-                ->where('user_id', $request->user()->id)
+            $user = $request->user();
+            if (! $user) {
+                return ApiResponse::error('Unauthorized', 401);
+            }
+
+            $orders = Order::with('items.product')
+                ->where('user_id', $user->id)
+                ->orderBy('id', 'desc')
+                ->get();
+
+            return ApiResponse::success($orders, 'User orders retrieved');
+        } catch (\Throwable $th) {
+            return ApiResponse::error($th->getMessage(), 500);
+        }
+    }
+
+    public function adminIndex()
+    {
+        try {
+            $orders = Order::with(['items.product'])
+                ->orderBy('id', 'desc')
                 ->get();
 
             return ApiResponse::success($orders, 'All orders retrieved');
-
         } catch (\Throwable $th) {
             return ApiResponse::error($th->getMessage(), 500);
         }
@@ -217,15 +235,15 @@ class OrderController extends Controller
      *     @OA\Response(response=404, description="Not Found")
      * )
      */
-    public function show($id)
+    public function show($identifier)
     {
         try {
-            $order = Order::with('items.product', 'user')
-                ->where('order_code', $id)
+            $order = Order::with(['items.product', 'user'])
+                ->where('order_code', $identifier) // jika pakai order_code
+                ->orWhere('id', $identifier)       // jika pakai ID
                 ->firstOrFail();
 
             return ApiResponse::success($order, 'Order detail retrieved');
-
         } catch (\Throwable $th) {
             return ApiResponse::error('Order not found', 404);
         }
