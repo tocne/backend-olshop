@@ -86,7 +86,7 @@ class ProductController extends Controller
             // Upload image
             $image_url = null;
             if ($request->hasFile('image')) {
-                $image_url = SupabaseUploadController::uploadFile($request->file('image'), 'products');
+                $image_url = SupabaseUploader::upload($request->file('image'), 'products');
             }
 
             // Generate SKU
