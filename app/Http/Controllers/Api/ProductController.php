@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ProductSize;
 use Illuminate\Http\Request;
+use App\Services\SupabaseUploader;
 
 class ProductController extends Controller
 {
@@ -85,8 +86,7 @@ class ProductController extends Controller
             // Upload image
             $image_url = null;
             if ($request->hasFile('image')) {
-                $path = $request->file('image')->store('products', 'public');
-                $image_url = asset('storage/'.$path);
+                $image_url = SupabaseUploadController::uploadFile($request->file('image'), 'products');
             }
 
             // Generate SKU
