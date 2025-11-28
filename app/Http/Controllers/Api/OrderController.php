@@ -164,21 +164,21 @@ class OrderController extends Controller
     }
 
     public function markAsPaid($id)
-{
-    try {
-        $order = Order::findOrFail($id);
+    {
+        try {
+            $order = Order::findOrFail($id);
 
-        if ($order->status !== 'pending') {
-            return ApiResponse::error('Only pending orders can be marked as paid.', 400);
+            if ($order->status !== 'pending') {
+                return ApiResponse::error('Only pending orders can be marked as paid.', 400);
+            }
+
+            $order->update(['status' => 'paid']);
+
+            return ApiResponse::success($order, 'Order marked as paid.');
+        } catch (\Throwable $th) {
+            return ApiResponse::error($th->getMessage(), 500);
         }
-
-        $order->update(['status' => 'paid']);
-
-        return ApiResponse::success($order, 'Order marked as paid.');
-    } catch (\Throwable $th) {
-        return ApiResponse::error($th->getMessage(), 500);
     }
-}
 
     /**
      * @OA\Put(
@@ -276,6 +276,23 @@ class OrderController extends Controller
             return ApiResponse::success($order, 'Order detail retrieved');
         } catch (\Throwable $th) {
             return ApiResponse::error('Order not found', 404);
+        }
+    }
+
+    public function cancel($id)
+    {
+        try {
+            $order = Order::findOrFail($id);
+
+            if ($order->status !== 'pending') {
+                return ApiResponse::error('Only pending orders can be canceled.', 400);
+            }
+
+            $order->update(['status' => 'canceled']);
+
+            return ApiResponse::success($order, 'Order has been canceled.');
+        } catch (\Throwable $th) {
+            return ApiResponse::error($th->getMessage(), 500);
         }
     }
 }

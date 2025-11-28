@@ -29,6 +29,8 @@ Route::post('/products/add-size-stock', [ProductController::class, 'addSizeStock
 Route::delete('/products/{id}', [ProductController::class, 'destroy']);
 // Order detail
 Route::get('/orders/code/{order_code}', [OrderController::class, 'showByCode']);
+Route::put('/admin/orders/{id}/cancel', [OrderController::class, 'cancel']);
+
 // Payment detail
 Route::put('/admin/orders/{id}/pay', [OrderController::class, 'markAsPaid']);
 Route::put('/admin/orders/{id}/ship', [OrderController::class, 'ship']);
