@@ -16,26 +16,28 @@ class SupabaseUploader
             throw new \Exception("File tidak ditemukan untuk upload.");
         }
 
+        // Nama file aman
         $fileExt = $file->getClientOriginalExtension();
         $fileName = uniqid() . '.' . $fileExt;
-        $path = $folder . '/' . $fileName;
+        $path = "$folder/$fileName";
 
-        // Upload file ke Supabase Storage
+        // Upload file secara aman via multipart
         $response = Http::withHeaders([
             'apikey' => $supabaseKey,
-            'Authorization' => 'Bearer ' . $supabaseKey,
-            'Content-Type' => $file->getMimeType(),
-            'Cache-Control' => '3600'
-        ])->put(
-            "$supabaseUrl/storage/v1/object/$bucket/$path",
-            file_get_contents($file)
-        );
+            'Authorization' => "Bearer $supabaseKey",
+        ])->attach(
+            'file',                       // field name
+            file_get_contents($file),     // file content
+            $fileName                     // file name
+        )->post("$supabaseUrl/storage/v1/object/$bucket/$path");
 
+        // Jika gagal → berikan pesan UTF8 aman
         if ($response->failed()) {
-            throw new \Exception("Upload gagal: " . $response->body());
+            $error = $response->json() ?? ['error' => 'Upload failed'];
+            throw new \Exception("Upload gagal: " . json_encode($error, JSON_UNESCAPED_UNICODE));
         }
 
-        // URL public yang langsung bisa diakses dari FE
+        // URL public final
         return "$supabaseUrl/storage/v1/object/public/$bucket/$path";
     }
 }
