@@ -23,13 +23,7 @@ class SupabaseUploader
 
         // Upload file secara aman via multipart
 
-dd([
-    'url' => $url,
-    'supabase_url' => $supabaseUrl,
-    'bucket' => $bucket,
-    'path' => $path
-]);
-        $response = Http::withHeaders([
+   $response = Http::withHeaders([
             'apikey' => $supabaseKey,
             'Authorization' => "Bearer $supabaseKey",
         ])->attach(
@@ -43,6 +37,12 @@ dd([
             $error = $response->json() ?? ['error' => 'Upload failed'];
             throw new \Exception("Upload gagal: " . json_encode($error, JSON_UNESCAPED_UNICODE));
         }
+        dd([
+    'supabase_url' => $supabaseUrl,
+    'bucket'       => $bucket,
+    'path'         => $path,
+    'final_url'    => $debugUrl,
+]);
 
         // URL public final
         return "$supabaseUrl/storage/v1/object/public/$bucket/$path";
