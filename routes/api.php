@@ -11,41 +11,42 @@ use App\Http\Controllers\Api\SeriesController;
 use App\Http\Controllers\Api\UploadController;
 use Illuminate\Support\Facades\Route;
 
-// AUTH
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
-
-// ADMIN ORDER LIST
+// Tes endpoint bawaan
 Route::get('/admin/orders', [OrderController::class, 'adminIndex']);
 
-// RESOURCES
 Route::apiResource('categories', CategoryController::class);
 Route::apiResource('products', ProductController::class);
 Route::apiResource('orders', OrderController::class);
 Route::apiResource('series', SeriesController::class);
 
-// PRODUCT SIZE
+// Delete product
 Route::post('/products/add-size-stock', [ProductController::class, 'addSizeStock']);
-
-// ORDER SPECIAL ROUTES
+Route::delete('/products/{id}', [ProductController::class, 'destroy']);
+// Order detail
 Route::get('/orders/code/{order_code}', [OrderController::class, 'showByCode']);
 Route::put('/admin/orders/{id}/cancel', [OrderController::class, 'cancel']);
+
+// Payment detail
 Route::put('/admin/orders/{id}/pay', [OrderController::class, 'markAsPaid']);
 Route::put('/admin/orders/{id}/ship', [OrderController::class, 'ship']);
 Route::put('/admin/orders/{id}/complete', [OrderController::class, 'complete']);
+// Additional routes for product sizes
+Route::post('/product-sizes', [ProductSizeController::class, 'store']);
+Route::put('/product-sizes/{id}', [ProductSizeController::class, 'update']);
+Route::delete('/product-sizes/{id}', [ProductSizeController::class, 'destroy']);
 
-// PAYMENT
 Route::post('/payments', [PaymentController::class, 'store']);
 Route::get('/payments/{id}', [PaymentController::class, 'show']);
-
-// FILE UPLOAD
+Route::put('/orders/{id}/ship', [OrderController::class, 'ship']);
+Route::put('/orders/{id}/complete', [OrderController::class, 'complete']);
 Route::post('/upload', [UploadController::class, 'store']);
-
-// CHECKOUT
 Route::post('/checkout', [CheckoutController::class, 'checkout']);
 
-// PROTECTED ROUTES
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    // Route untuk API utama
 });
