@@ -139,9 +139,17 @@ class ProductController extends Controller
             }
 
             return ApiResponse::success($product->load('sizes'), 'Product created successfully');
-        } catch (\Throwable $e) {
-            return ApiResponse::error($e->getMessage(), 500);
-        }
+} catch (\Throwable $e) {
+
+    \Log::error("PRODUCT_STORE_FAILED", [
+        "error" => $e->getMessage(),
+        "line" => $e->getLine(),
+        "file" => $e->getFile(),
+        "trace" => $e->getTraceAsString(),
+    ]);
+
+    return ApiResponse::error("Server error", 500);
+}
     }
 
     /**
