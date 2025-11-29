@@ -14,7 +14,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
 
         // Gunakan konfigurasi bawaan Laravel 12 untuk Sanctum
-        $middleware->api();
+        $middleware->api(prepend: [
+        \Illuminate\Http\Middleware\HandleCors::class,
+    ]);
         // Tidak perlu validateCsrfTokens untuk API
         // karena Sanctum + CORS sudah handle auth-nya
     })
