@@ -23,10 +23,10 @@ class SupabaseUploader
 
         // Upload file secara aman via multipart
 
-        dd([
-    'supabaseUrl' => $supabaseUrl,
-    'bucket' => $bucket,
-    'path' => $path
+\Log::debug('SUPABASE ENV CHECK', [
+    'supabase_url' => $supabaseUrl,
+    'bucket'       => $bucket,
+    'path'         => $path,
 ]);
         $response = Http::withHeaders([
             'apikey' => $supabaseKey,
