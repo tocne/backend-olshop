@@ -6,8 +6,8 @@ use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ProductSize;
-use Illuminate\Http\Request;
 use App\Services\SupabaseUploader;
+use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
@@ -139,17 +139,9 @@ class ProductController extends Controller
             }
 
             return ApiResponse::success($product->load('sizes'), 'Product created successfully');
-} catch (\Throwable $e) {
-
-    \Log::error("PRODUCT_STORE_FAILED", [
-        "error" => $e->getMessage(),
-        "line" => $e->getLine(),
-        "file" => $e->getFile(),
-        "trace" => $e->getTraceAsString(),
-    ]);
-
-    return ApiResponse::error("Server error", 500);
-}
+        } catch (\Throwable $e) {
+            return ApiResponse::error($e->getMessage(), 500);
+        }
     }
 
     /**

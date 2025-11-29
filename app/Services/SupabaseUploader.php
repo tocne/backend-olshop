@@ -9,36 +9,31 @@ class SupabaseUploader
     public static function upload($file, $folder = 'products')
     {
         $supabaseUrl = env('SUPABASE_URL');
-        $supabaseKey = env('SUPABASE_KEY');
+        $supabaseKey = env('SUPABASE_KEY');  // ANON KEY
+
         $bucket = env('SUPABASE_BUCKET');
 
-        if (!$file) {
-            throw new \Exception("File tidak ditemukan untuk upload.");
+        if (! $file) {
+            throw new \Exception('No file provided.');
         }
 
-        // Nama file aman
-        $fileExt = $file->getClientOriginalExtension();
-        $fileName = uniqid() . '.' . $fileExt;
-        $path = "$folder/$fileName";
-
-        // Upload file secara aman via multipart
+        $ext = $file->getClientOriginalExtension();
+        $filename = uniqid().'.'.$ext;
+        $path = "$folder/$filename";
 
         $response = Http::withHeaders([
             'apikey' => $supabaseKey,
             'Authorization' => "Bearer $supabaseKey",
         ])->attach(
-            'file',                       // field name
-            file_get_contents($file),     // file content
-            $fileName                     // file name
+            'file',
+            file_get_contents($file->getRealPath()),
+            $filename
         )->post("$supabaseUrl/storage/v1/object/$bucket/$path");
 
-        // Jika gagal → berikan pesan UTF8 aman
         if ($response->failed()) {
-            $error = $response->json() ?? ['error' => 'Upload failed'];
-            throw new \Exception("Upload gagal: " . json_encode($error, JSON_UNESCAPED_UNICODE));
+            throw new \Exception('Upload gagal: '.$response->body());
         }
 
-        // URL public final
         return "$supabaseUrl/storage/v1/object/public/$bucket/$path";
     }
 }
