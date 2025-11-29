@@ -21,30 +21,34 @@ class SupabaseUploader
         $fileName = uniqid() . '.' . $fileExt;
         $path = "$folder/$fileName";
 
-        // Upload file secara aman via multipart
+        // URL upload
+        $uploadUrl = rtrim($supabaseUrl, '/') . "/storage/v1/object/$bucket/$path";
 
-   $response = Http::withHeaders([
-            'apikey' => $supabaseKey,
+        // Debug sebelum upload
+        dd([
+            'supabase_url' => $supabaseUrl,
+            'bucket'       => $bucket,
+            'path'         => $path,
+            'upload_url'   => $uploadUrl,
+        ]);
+
+        // Upload file via multipart
+        $response = Http::withHeaders([
+            'apikey'        => $supabaseKey,
             'Authorization' => "Bearer $supabaseKey",
         ])->attach(
-            'file',                       // field name
-            file_get_contents($file),     // file content
-            $fileName                     // file name
-        )->post("$supabaseUrl/storage/v1/object/$bucket/$path");
+            'file',
+            file_get_contents($file),
+            $fileName
+        )->post($uploadUrl);
 
-        // Jika gagal → berikan pesan UTF8 aman
+        // Jika gagal → berikan pesan aman
         if ($response->failed()) {
             $error = $response->json() ?? ['error' => 'Upload failed'];
             throw new \Exception("Upload gagal: " . json_encode($error, JSON_UNESCAPED_UNICODE));
         }
-        dd([
-    'supabase_url' => $supabaseUrl,
-    'bucket'       => $bucket,
-    'path'         => $path,
-    'final_url'    => $debugUrl,
-]);
 
         // URL public final
-        return "$supabaseUrl/storage/v1/object/public/$bucket/$path";
+        return rtrim($supabaseUrl, '/') . "/storage/v1/object/public/$bucket/$path";
     }
 }
