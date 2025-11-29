@@ -44,6 +44,9 @@ Route::put('/orders/{id}/complete', [OrderController::class, 'complete']);
 Route::post('/upload', [UploadController::class, 'store']);
 Route::post('/checkout', [CheckoutController::class, 'checkout']);
 
+//category
+Route::get('/products/category/{categoryPrefix}', [ProductController::class, 'getProductsByCategory']);
+
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);

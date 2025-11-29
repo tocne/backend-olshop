@@ -370,4 +370,20 @@ class ProductController extends Controller
             return ApiResponse::error('Product not found', 404);
         }
     }
+
+    public function getProductsByCategory($categoryPrefix)
+{
+    try {
+        // Cari kategori berdasarkan prefix
+        $category = Category::where('prefix', $categoryPrefix)->firstOrFail();
+
+        // Ambil produk berdasarkan kategori
+        $products = $category->products; // Asumsi Anda sudah punya hubungan "products" pada model Category
+
+        return ApiResponse::success($products, 'Products retrieved successfully');
+    } catch (\Throwable $th) {
+        return ApiResponse::error($th->getMessage(), 500);
+    }
+}
+
 }
