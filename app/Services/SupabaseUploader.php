@@ -22,6 +22,12 @@ class SupabaseUploader
         $path = "$folder/$fileName";
 
         // Upload file secara aman via multipart
+
+        dd([
+    'supabaseUrl' => $supabaseUrl,
+    'bucket' => $bucket,
+    'path' => $path
+]);
         $response = Http::withHeaders([
             'apikey' => $supabaseKey,
             'Authorization' => "Bearer $supabaseKey",
