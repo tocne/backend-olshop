@@ -82,7 +82,7 @@ class ProductController extends Controller
 
                 'image' => 'nullable|image|max:2048',
             ]);
-
+            dd($validated);
             // Upload image
             $image_url = null;
             if ($request->hasFile('image')) {
