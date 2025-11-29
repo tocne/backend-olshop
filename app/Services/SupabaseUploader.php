@@ -9,7 +9,7 @@ class SupabaseUploader
     public static function upload($file, $folder = 'products')
     {
         $supabaseUrl = env('SUPABASE_URL');
-        $supabaseKey = env('SUPABASE_SERVICE_ROLE_KEY');
+        $supabaseKey = env('SUPABASE_KEY');
         $bucket = env('SUPABASE_BUCKET');
 
         if (!$file) {
