@@ -46,10 +46,7 @@ Route::put('/orders/{id}/ship', [OrderController::class, 'ship']);
 Route::put('/orders/{id}/complete', [OrderController::class, 'complete']);
 Route::post('/upload', [UploadController::class, 'store']);
 Route::post('/checkout', [CheckoutController::class, 'checkout']);
-Route::get('/cors-reset', function () {
-    Artisan::call('optimize:clear');
-    return ['cors' => 'cleared'];
-});
+
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
