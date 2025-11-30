@@ -11,7 +11,6 @@ class Product extends Model
         'description',
         'price',
         'category_id',
-        'color',
         'stock',
         'stock_type',
         'po_estimate_days',
@@ -42,5 +41,10 @@ class Product extends Model
     public function category()
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function colors()
+    {
+        return $this->hasMany(ProductColor::class, 'product_id');
     }
 }

@@ -16,6 +16,7 @@ return new class extends Migration
             $table->foreignId('product_id')->constrained('products')->onDelete('cascade');
             $table->string('size', 50);
             $table->integer('stock')->default(0);
+            $table->string('barcode')->nullable();
             $table->timestamps();
 
             $table->unique(['product_id', 'size']);

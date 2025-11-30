@@ -9,21 +9,37 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
+    public function up()
     {
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->decimal('total_price', 10, 2);
-            $table->string('status')->default('pending');
+
+            // Jika ada login user — guest checkout tetap jalan
+            $table->foreignId('user_id')->nullable();
+
+            // Nomor pesanan unik
+            $table->string('order_code')->unique();
+            $table->enum('order_type', ['suka_suka', 'seri', 'normal'])
+                ->default('suka_suka');
+            // Guest checkout
+            $table->string('customer_name')->nullable();
+            $table->string('customer_phone')->nullable();
+            $table->text('address')->nullable();
+            $table->text('notes')->nullable();
+
+            // Payment
+            $table->string('payment_method')->nullable();
+
+            // Perhitungan harga
+            $table->integer('subtotal')->default(0);
+            $table->integer('shipping_cost')->default(0);
+            $table->integer('total')->default(0);
+
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
-    public function down(): void
+    public function down()
     {
         Schema::dropIfExists('orders');
     }

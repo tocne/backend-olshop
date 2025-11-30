@@ -9,7 +9,7 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
+    public function up()
     {
         Schema::create('order_items', function (Blueprint $table) {
             $table->id();
@@ -17,20 +17,22 @@ return new class extends Migration
             $table->foreignId('order_id')->constrained()->onDelete('cascade');
             $table->foreignId('product_id')->constrained()->onDelete('cascade');
 
+            // Product snapshot
             $table->string('product_name');
-            $table->string('size')->nullable(); // READY → size, PO → null
-            $table->integer('quantity');
+
+            // Variant (optional)
+            $table->string('size')->nullable();
+            $table->string('color')->nullable();
+
+            // Quantity & price
+            $table->integer('qty');
             $table->integer('price');
 
             $table->timestamps();
         });
-
     }
 
-    /**
-     * Reverse the migrations.
-     */
-    public function down(): void
+    public function down()
     {
         Schema::dropIfExists('order_items');
     }

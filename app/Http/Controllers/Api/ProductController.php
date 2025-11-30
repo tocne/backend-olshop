@@ -81,9 +81,13 @@ class ProductController extends Controller
                 'description' => 'nullable|string',
                 'price' => 'required|numeric',
                 'category_id' => 'required|exists:categories,id',
-                'color' => 'nullable|string|max:50',
                 'category_prefix' => 'required|string|max:3',
 
+                // MULTI COLORS
+                'colors' => 'nullable|array',
+                'colors.*' => 'string|max:50',
+
+                // STOCK TYPE
                 'stock_type' => 'required|in:ready,po',
                 'po_estimate_days' => 'required_if:stock_type,po|nullable|integer|min:1',
                 'po_notes' => 'nullable|string',
@@ -114,7 +118,7 @@ class ProductController extends Controller
 
             $skuBase = $prefix.$newNumber;
 
-            // Hitung total stok → hanya untuk READY
+            // Total stock (READY only)
             $totalStock = ($validated['stock_type'] === 'ready')
                 ? array_sum(array_column($validated['sizes'], 'stock'))
                 : 0;
@@ -125,7 +129,7 @@ class ProductController extends Controller
                 'description' => $validated['description'],
                 'price' => $validated['price'],
                 'category_id' => $validated['category_id'],
-                'color' => $validated['color'],
+
                 'stock' => $totalStock,
                 'product_code' => $skuBase,
 
@@ -140,7 +144,7 @@ class ProductController extends Controller
                 'image_url' => $image_url,
             ]);
 
-            // Insert sizes only if READY
+            // Insert sizes (READY only)
             if ($validated['stock_type'] === 'ready') {
                 foreach ($validated['sizes'] as $s) {
                     $product->sizes()->create([
@@ -151,7 +155,20 @@ class ProductController extends Controller
                 }
             }
 
-            return ApiResponse::success($product->load('sizes'), 'Product created successfully');
+            // Insert Colors (optional)
+            if (! empty($validated['colors'])) {
+                foreach ($validated['colors'] as $color) {
+                    $product->colors()->create([
+                        'color_name' => ucfirst(strtolower($color)),
+                    ]);
+                }
+            }
+
+            return ApiResponse::success(
+                $product->load(['sizes', 'colors']),
+                'Product created successfully'
+            );
+
         } catch (\Throwable $e) {
             return ApiResponse::error($e->getMessage(), 500);
         }
@@ -220,84 +237,98 @@ class ProductController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            $product = Product::with('sizes')->findOrFail($id);
+            $product = Product::with(['sizes', 'colors'])->findOrFail($id);
 
-            // Validasi produk
             $validated = $request->validate([
-                'name' => 'string|max:255',
+                'name' => 'required|string|max:255',
                 'description' => 'nullable|string',
-                'price' => 'numeric',
-                'category_id' => 'exists:categories,id',
-                'color' => 'nullable|string|max:50',
-                'image' => 'nullable|image|max:2048',
+                'price' => 'required|numeric',
+                'category_id' => 'required|exists:categories,id',
 
+                // MULTI COLORS
+                'colors' => 'nullable|array',
+                'colors.*' => 'string|max:50',
+
+                // STOCK TYPE
                 'stock_type' => 'required|in:ready,po',
-                'po_estimate_days' => 'nullable|integer',
+                'po_estimate_days' => 'required_if:stock_type,po|nullable|integer|min:1',
                 'po_notes' => 'nullable|string',
 
-                // Tambahkan ini:
+                // SIZE ONLY IF READY
                 'sizes' => 'required_if:stock_type,ready|array',
-                'sizes.*.id' => 'nullable|integer',
                 'sizes.*.size' => 'required_if:stock_type,ready|string|max:20',
                 'sizes.*.stock' => 'required_if:stock_type,ready|integer|min:0',
+
+                'image' => 'nullable|image|max:2048',
             ]);
 
-            // Update produk utama
+            // Upload image (optional)
+            $image_url = $product->image_url;
             if ($request->hasFile('image')) {
-                $path = $request->file('image')->store('products', 'public');
-                $validated['image_url'] = asset('storage/'.$path);
+                $image_url = SupabaseUploader::upload($request->file('image'), 'products');
             }
 
-            $product->update($validated);
+            // Total stock READY only
+            $totalStock = ($validated['stock_type'] === 'ready')
+                ? array_sum(array_column($validated['sizes'], 'stock'))
+                : 0;
 
-            // Update size (hapus yang hilang, update yang ada, tambah yang baru)
-            $existingSizeIds = $product->sizes->pluck('id')->toArray();
-            $incomingSizeIds = [];
+            // Update product
+            $product->update([
+                'name' => $validated['name'],
+                'description' => $validated['description'],
+                'price' => $validated['price'],
+                'category_id' => $validated['category_id'],
 
-            // HANDLE SIZES HANYA JIKA READY STOCK
+                'stock' => $totalStock,
+
+                'stock_type' => $validated['stock_type'],
+                'po_estimate_days' => $validated['stock_type'] === 'po'
+                    ? ($validated['po_estimate_days'] ?? null)
+                    : null,
+                'po_notes' => $validated['stock_type'] === 'po'
+                    ? ($validated['po_notes'] ?? null)
+                    : null,
+
+                'image_url' => $image_url,
+            ]);
+
+            /*
+            |--------------------------------------------------------------------------
+            | UPDATE SIZES (Replace all)
+            |--------------------------------------------------------------------------
+            */
+            $product->sizes()->delete();
+
             if ($validated['stock_type'] === 'ready') {
-
-                foreach ($validated['sizes'] ?? [] as $s) {
-
-                    // Jika ada id → update
-                    if (isset($s['id'])) {
-                        $incomingSizeIds[] = $s['id'];
-
-                        $product->sizes()->where('id', $s['id'])->update([
-                            'size' => strtoupper($s['size']),
-                            'stock' => $s['stock'],
-                            'barcode' => $product->product_code.'-'.strtoupper($s['size']),
-                        ]);
-                    }
-
-                    // Jika id tidak ada → create size baru
-                    else {
-                        $new = $product->sizes()->create([
-                            'size' => strtoupper($s['size']),
-                            'stock' => $s['stock'],
-                            'barcode' => $product->product_code.'-'.strtoupper($s['size']),
-                        ]);
-
-                        $incomingSizeIds[] = $new->id;
-                    }
-                }
-
-                // Hapus size yang tidak ada di update
-                $product->sizes()->whereNotIn('id', $incomingSizeIds)->delete();
-            }
-
-            // Hapus size yang tidak dikirim (size lama yang didelete user)
-            foreach ($existingSizeIds as $oldId) {
-                if (! in_array($oldId, $incomingSizeIds)) {
-                    $product->sizes()->where('id', $oldId)->delete();
+                foreach ($validated['sizes'] as $s) {
+                    $product->sizes()->create([
+                        'size' => strtoupper($s['size']),
+                        'stock' => $s['stock'],
+                        'barcode' => $product->product_code.'-'.strtoupper($s['size']),
+                    ]);
                 }
             }
 
-            // Recalculate total stock
-            $product->stock = $product->sizes()->sum('stock');
-            $product->save();
+            /*
+            |--------------------------------------------------------------------------
+            | UPDATE COLORS (Replace all)
+            |--------------------------------------------------------------------------
+            */
+            $product->colors()->delete();
 
-            return ApiResponse::success($product->load('sizes'), 'Product updated successfully');
+            if (! empty($validated['colors'])) {
+                foreach ($validated['colors'] as $color) {
+                    $product->colors()->create([
+                        'color_name' => ucfirst(strtolower($color)),
+                    ]);
+                }
+            }
+
+            return ApiResponse::success(
+                $product->load(['sizes', 'colors']),
+                'Product updated successfully'
+            );
 
         } catch (\Throwable $e) {
             return ApiResponse::error($e->getMessage(), 500);

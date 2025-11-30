@@ -11,16 +11,16 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::table('orders', function (Blueprint $table) {
-            // Tambahkan kolom nullable dulu supaya aman
-            $table->string('order_code')->nullable()->after('id');
+        Schema::create('product_colors', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('product_id')->constrained()->onDelete('cascade');
+            $table->string('color_name');
+            $table->timestamps();
         });
     }
 
     public function down()
     {
-        Schema::table('orders', function (Blueprint $table) {
-            $table->dropColumn('order_code');
-        });
+        Schema::dropIfExists('product_colors');
     }
 };
