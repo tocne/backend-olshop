@@ -23,9 +23,22 @@ class ProductController extends Controller
     public function index()
     {
         try {
-            $products = Product::with(['category', 'sizes'])->get();
+            $products = Product::with(['category', 'sizes'])
+                ->where(function ($q) {
+
+                    // PRODUK READY: hanya tampil jika punya sizes
+                    $q->where(function ($r) {
+                        $r->where('stock_type', 'ready')
+                            ->whereHas('sizes');
+                    })
+
+                    // PRODUK PO: tampil walaupun tanpa sizes
+                        ->orWhere('stock_type', 'po');
+                })
+                ->get();
 
             return ApiResponse::success($products, 'All products retrieved');
+
         } catch (\Throwable $th) {
             return ApiResponse::error($th->getMessage(), 500);
         }
@@ -372,18 +385,17 @@ class ProductController extends Controller
     }
 
     public function getProductsByCategory($categoryPrefix)
-{
-    try {
-        // Cari kategori berdasarkan prefix
-        $category = Category::where('prefix', $categoryPrefix)->firstOrFail();
+    {
+        try {
+            // Cari kategori berdasarkan prefix
+            $category = Category::where('prefix', $categoryPrefix)->firstOrFail();
 
-        // Ambil produk berdasarkan kategori
-        $products = $category->products; // Asumsi Anda sudah punya hubungan "products" pada model Category
+            // Ambil produk berdasarkan kategori
+            $products = $category->products; // Asumsi Anda sudah punya hubungan "products" pada model Category
 
-        return ApiResponse::success($products, 'Products retrieved successfully');
-    } catch (\Throwable $th) {
-        return ApiResponse::error($th->getMessage(), 500);
+            return ApiResponse::success($products, 'Products retrieved successfully');
+        } catch (\Throwable $th) {
+            return ApiResponse::error($th->getMessage(), 500);
+        }
     }
-}
-
 }
