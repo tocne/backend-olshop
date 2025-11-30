@@ -23,7 +23,7 @@ class ProductController extends Controller
     public function index()
     {
         try {
-            $products = Product::with(['category', 'sizes'])
+            $products = Product::with(['category', 'sizes','colors'])
                 ->where(function ($q) {
 
                     // PRODUK READY: hanya tampil jika punya sizes
