@@ -28,10 +28,12 @@ Route::delete('/products/{id}', [ProductController::class, 'destroy']);
 Route::get('/orders/code/{order_code}', [OrderController::class, 'showByCode']);
 Route::put('/admin/orders/{id}/cancel', [OrderController::class, 'cancel']);
 
-// Payment detail
+// order detail
 Route::put('/admin/orders/{id}/pay', [OrderController::class, 'markAsPaid']);
 Route::put('/admin/orders/{id}/ship', [OrderController::class, 'ship']);
 Route::put('/admin/orders/{id}/complete', [OrderController::class, 'complete']);
+Route::post('/orders/checkout', [OrderController::class, 'checkout']);
+Route::get('/orders/code/{order_code}', [OrderController::class, 'getByCode']);
 // Additional routes for product sizes
 Route::post('/product-sizes', [ProductSizeController::class, 'store']);
 Route::put('/product-sizes/{id}', [ProductSizeController::class, 'update']);
