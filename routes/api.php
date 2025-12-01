@@ -14,7 +14,7 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 // Tes endpoint bawaan
 
-Route::post('order/checkout', [OrderController::class, 'checkout']);
+Route::post('/orders/checkout', [OrderController::class, 'checkout']);
 Route::get('/orders/code/{order_code}', [OrderController::class, 'showByCode']);
 Route::get('/admin/orders', [OrderController::class, 'adminIndex']);
 Route::post('/products/add-size-stock', [ProductController::class, 'addSizeStock']);
