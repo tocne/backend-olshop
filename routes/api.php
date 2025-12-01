@@ -15,11 +15,8 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 // Tes endpoint bawaan
 Route::get('/admin/orders', [OrderController::class, 'adminIndex']);
-
-Route::apiResource('categories', CategoryController::class);
-Route::apiResource('products', ProductController::class);
-Route::apiResource('orders', OrderController::class);
-Route::apiResource('series', SeriesController::class);
+Route::post('/orders/checkout', [OrderController::class, 'checkout']);
+Route::get('/orders/code/{order_code}', [OrderController::class, 'getByCode']);
 
 // Delete product
 Route::post('/products/add-size-stock', [ProductController::class, 'addSizeStock']);
@@ -32,8 +29,7 @@ Route::put('/admin/orders/{id}/cancel', [OrderController::class, 'cancel']);
 Route::put('/admin/orders/{id}/pay', [OrderController::class, 'markAsPaid']);
 Route::put('/admin/orders/{id}/ship', [OrderController::class, 'ship']);
 Route::put('/admin/orders/{id}/complete', [OrderController::class, 'complete']);
-Route::post('/orders/checkout', [OrderController::class, 'checkout']);
-Route::get('/orders/code/{order_code}', [OrderController::class, 'getByCode']);
+
 // Additional routes for product sizes
 Route::post('/product-sizes', [ProductSizeController::class, 'store']);
 Route::put('/product-sizes/{id}', [ProductSizeController::class, 'update']);
@@ -49,6 +45,11 @@ Route::post('/checkout', [CheckoutController::class, 'checkout']);
 //category
 Route::get('/products/category/{categoryPrefix}', [ProductController::class, 'getProductsByCategory']);
 
+
+Route::apiResource('categories', CategoryController::class);
+Route::apiResource('products', ProductController::class);
+Route::apiResource('orders', OrderController::class);
+Route::apiResource('series', SeriesController::class);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
