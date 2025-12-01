@@ -6,22 +6,26 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up()
     {
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
 
-            // Jika ada login user — guest checkout tetap jalan
+            // USER (optional)
             $table->foreignId('user_id')->nullable();
 
-            // Nomor pesanan unik
+            // Order Code
             $table->string('order_code')->unique();
+
+            // Tipe order
             $table->enum('order_type', ['suka_suka', 'seri', 'normal'])
                 ->default('suka_suka');
-            // Guest checkout
+
+            // Status (WAJIB)
+            $table->enum('status', ['pending', 'paid', 'shipped', 'completed', 'canceled'])
+                ->default('pending');
+
+            // Customer
             $table->string('customer_name')->nullable();
             $table->string('customer_phone')->nullable();
             $table->text('address')->nullable();
@@ -30,7 +34,7 @@ return new class extends Migration
             // Payment
             $table->string('payment_method')->nullable();
 
-            // Perhitungan harga
+            // Pricing
             $table->integer('subtotal')->default(0);
             $table->integer('shipping_cost')->default(0);
             $table->integer('total')->default(0);
