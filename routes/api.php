@@ -14,15 +14,12 @@ use Illuminate\Support\Facades\Route;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 // Tes endpoint bawaan
-Route::get('/admin/orders', [OrderController::class, 'adminIndex']);
-Route::post('/orders/checkout', [OrderController::class, 'checkout']);
-Route::get('/orders/code/{order_code}', [OrderController::class, 'getByCode']);
 
-// Delete product
+Route::post('/checkout', [CheckoutController::class, 'checkout']);
+Route::get('/orders/code/{order_code}', [OrderController::class, 'showByCode']);
+Route::get('/admin/orders', [OrderController::class, 'adminIndex']);
 Route::post('/products/add-size-stock', [ProductController::class, 'addSizeStock']);
 Route::delete('/products/{id}', [ProductController::class, 'destroy']);
-// Order detail
-Route::get('/orders/code/{order_code}', [OrderController::class, 'showByCode']);
 Route::put('/admin/orders/{id}/cancel', [OrderController::class, 'cancel']);
 
 // order detail
@@ -40,7 +37,6 @@ Route::get('/payments/{id}', [PaymentController::class, 'show']);
 Route::put('/orders/{id}/ship', [OrderController::class, 'ship']);
 Route::put('/orders/{id}/complete', [OrderController::class, 'complete']);
 Route::post('/upload', [UploadController::class, 'store']);
-Route::post('/checkout', [CheckoutController::class, 'checkout']);
 
 //category
 Route::get('/products/category/{categoryPrefix}', [ProductController::class, 'getProductsByCategory']);
