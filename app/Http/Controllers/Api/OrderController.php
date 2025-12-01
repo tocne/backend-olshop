@@ -64,6 +64,91 @@ class OrderController extends Controller
         }
     }
 
+    public function checkout(Request $request)
+    {
+        try {
+            // VALIDASI
+            $validated = $request->validate([
+                'customer_name' => 'required|string|max:255',
+                'customer_phone' => 'required|string|max:30',
+                'address' => 'required|string',
+                'notes' => 'nullable|string',
+                'subtotal' => 'required|integer|min:0',
+
+                'items' => 'required|array|min:1',
+                'items.*.product_id' => 'required|exists:products,id',
+                'items.*.product_name' => 'nullable|string',
+                'items.*.size' => 'nullable|string|max:10',
+                'items.*.color' => 'nullable|string|max:50',
+                'items.*.quantity' => 'required|integer|min:1',
+                'items.*.price' => 'required|integer|min:0',
+                'items.*.size_id' => 'nullable|exists:product_sizes,id',
+            ]);
+
+            // ===== GENERATE ORDER CODE =====
+            $lastOrder = Order::orderBy('id', 'desc')->first();
+            $nextNumber = str_pad(($lastOrder->id ?? 0) + 1, 4, '0', STR_PAD_LEFT);
+
+            $orderCode = 'INV-'.date('Ymd').'-'.$nextNumber;
+
+            // ===== CREATE ORDER =====
+            $order = Order::create([
+                'order_code' => $orderCode,
+                'status' => 'pending',
+                'order_type' => 'normal',
+
+                'customer_name' => $validated['customer_name'],
+                'customer_phone' => $validated['customer_phone'],
+                'address' => $validated['address'],
+                'notes' => $validated['notes'] ?? null,
+
+                'subtotal' => $validated['subtotal'],
+            ]);
+
+            // ===== INSERT ORDER ITEMS =====
+            foreach ($validated['items'] as $item) {
+
+                $product = Product::find($item['product_id']);
+
+                // GET SIZE INFORMATION (IF READY STOCK)
+                if ($item['size_id']) {
+                    $sizeData = $product->sizes()->find($item['size_id']);
+
+                    if ($product->stock_type === 'ready') {
+                        if ($sizeData->stock < $item['quantity']) {
+                            return ApiResponse::error(
+                                "Stok ukuran {$sizeData->size} tidak mencukupi",
+                                400
+                            );
+                        }
+
+                        // Reduce stock
+                        $sizeData->decrement('stock', $item['quantity']);
+                    }
+                }
+
+                // Save item
+                $order->items()->create([
+                    'product_id' => $product->id,
+                    'product_name' => $item['product_name'] ?? $product->name,
+                    'size' => $item['size'],
+                    'color' => $item['color'],
+                    'quantity' => $item['quantity'],
+                    'price' => $item['price'],
+                    'stock_type' => $product->stock_type,
+                ]);
+            }
+
+            return ApiResponse::success(
+                ['order_code' => $orderCode],
+                'Order created successfully'
+            );
+
+        } catch (\Throwable $e) {
+            return ApiResponse::error($e->getMessage(), 500);
+        }
+    }
+
     // store method
     /**
      * @OA\Post(
