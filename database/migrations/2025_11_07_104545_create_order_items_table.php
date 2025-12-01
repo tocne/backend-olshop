@@ -25,7 +25,7 @@ return new class extends Migration
             $table->string('color')->nullable();
 
             // Quantity & price
-            $table->integer('qty');
+            $table->integer('quantity');
             $table->integer('price');
 
             $table->timestamps();
