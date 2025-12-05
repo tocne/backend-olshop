@@ -17,6 +17,7 @@ class Product extends Model
         'po_notes',
         'product_code',
         'image_url',
+        'images',
     ];
 
     protected $casts = [
@@ -46,5 +47,10 @@ class Product extends Model
     public function colors()
     {
         return $this->hasMany(ProductColor::class, 'product_id');
+    }
+
+    public function images()
+    {
+        return $this->hasMany(ProductImage::class);
     }
 }

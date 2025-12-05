@@ -23,7 +23,7 @@ class ProductController extends Controller
     public function index()
     {
         try {
-            $products = Product::with(['category', 'sizes','colors'])
+            $products = Product::with(['category', 'sizes', 'colors'])
                 ->where(function ($q) {
 
                     // PRODUK READY: hanya tampil jika punya sizes
@@ -144,6 +144,17 @@ class ProductController extends Controller
                 'image_url' => $image_url,
             ]);
 
+            // Upload multiple images
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $image) {
+
+                    $url = SupabaseUploader::upload($image, 'products');
+
+                    $product->images()->create([
+                        'image_url' => $url,
+                    ]);
+                }
+            }
             // Insert sizes (READY only)
             if ($validated['stock_type'] === 'ready') {
                 foreach ($validated['sizes'] as $s) {
@@ -292,6 +303,18 @@ class ProductController extends Controller
 
                 'image_url' => $image_url,
             ]);
+
+            if ($request->hasFile('images')) {
+                // hapus gambar lama
+                $product->images()->delete();
+
+                foreach ($request->file('images') as $image) {
+                    $url = SupabaseUploader::upload($image, 'products');
+                    $product->images()->create([
+                        'image_url' => $url,
+                    ]);
+                }
+            }
 
             /*
             |--------------------------------------------------------------------------
