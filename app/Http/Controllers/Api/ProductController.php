@@ -144,17 +144,20 @@ class ProductController extends Controller
                 'image_url' => $image_url,
             ]);
 
-            // Upload multiple images
+            // MULTIPLE IMAGES WITH ORDER
             if ($request->hasFile('images')) {
-                foreach ($request->file('images') as $image) {
 
-                    $url = SupabaseUploader::upload($image, 'products');
+                foreach ($request->file('images') as $index => $file) {
+
+                    $url = SupabaseUploader::upload($file, 'products');
 
                     $product->images()->create([
                         'image_url' => $url,
+                        'order' => $index,
                     ]);
                 }
             }
+
             // Insert sizes (READY only)
             if ($validated['stock_type'] === 'ready') {
                 foreach ($validated['sizes'] as $s) {
@@ -304,15 +307,29 @@ class ProductController extends Controller
                 'image_url' => $image_url,
             ]);
 
-            if ($request->hasFile('images')) {
-                // hapus gambar lama
-                $product->images()->delete();
+            // Delete old images if provided
+            if ($request->has('delete_images')) {
+                foreach ($request->delete_images as $imgId) {
+                    ProductImage::where('id', $imgId)->delete();
+                }
+            }
 
-                foreach ($request->file('images') as $image) {
-                    $url = SupabaseUploader::upload($image, 'products');
+            // Add new images
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $file) {
+                    $url = SupabaseUploader::upload($file, 'products');
+
                     $product->images()->create([
                         'image_url' => $url,
+                        'order' => 999, // temporary, will reorder later
                     ]);
+                }
+            }
+
+            // Reorder
+            if ($request->has('order')) {
+                foreach ($request->order as $imgId => $position) {
+                    ProductImage::where('id', $imgId)->update(['order' => $position]);
                 }
             }
 
