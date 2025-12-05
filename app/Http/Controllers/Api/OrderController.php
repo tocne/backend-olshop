@@ -103,6 +103,7 @@ class OrderController extends Controller
                 'notes' => $validated['notes'] ?? null,
 
                 'subtotal' => $validated['subtotal'],
+                'total' => $validated['subtotal'],
             ]);
 
             // ===== INSERT ORDER ITEMS =====
