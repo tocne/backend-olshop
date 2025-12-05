@@ -76,6 +76,19 @@ class CheckoutController extends Controller
             ]);
         }
 
+        foreach ($validated['items'] as $item) {
+
+            $product = Product::findOrFail($item['product_id']);
+            $sizeData = $product->sizes()->where('size', $item['size'])->first();
+
+            if ($sizeData->stock < $item['quantity']) {
+                return ApiResponse::error(
+                    "Stok size {$item['size']} untuk {$product->name} sudah habis.",
+                    400
+                );
+            }
+        }
+
         return response()->json([
             'status' => true,
             'message' => 'Order berhasil dibuat',
