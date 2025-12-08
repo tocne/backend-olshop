@@ -15,6 +15,8 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
+Route::get('/dashboard/sales-weekly', [DashboardController::class, 'salesWeekly']);
+
 
 // Tes endpoint bawaan
 
