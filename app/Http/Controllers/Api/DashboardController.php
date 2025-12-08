@@ -31,7 +31,7 @@ class DashboardController extends Controller
 
     foreach ($days as $day) {
         $orders[] = Order::whereDate('created_at', $day)->count();
-        $revenue[] = Order::whereDate('created_at', $day)->sum('total_amount');
+        $revenue[] = Order::whereDate('created_at', $day)->sum('total');
     }
 
     return response()->json([
