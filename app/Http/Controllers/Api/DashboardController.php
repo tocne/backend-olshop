@@ -19,12 +19,13 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function salesWeekly()
+   public function salesWeekly()
 {
-    // ambil 7 hari terakhir
-    $days = collect(range(0, 6))->map(function ($i) {
-        return now()->subDays($i)->format('Y-m-d');
-    })->reverse();
+    // Ambil tanggal 7 hari terakhir
+    $days = collect(range(0, 6))
+        ->map(fn($i) => now()->subDays($i)->format('Y-m-d'))
+        ->reverse()
+        ->values(); // penting!
 
     $orders = [];
     $revenue = [];
@@ -35,9 +36,9 @@ class DashboardController extends Controller
     }
 
     return response()->json([
-        'labels' => $days,
-        'orders' => $orders,
-        'revenue' => $revenue
+        'labels' => $days,     // sudah array indexed (0,1,2,3...)
+        'orders' => array_values($orders),
+        'revenue' => array_values($revenue)
     ]);
 }
 
