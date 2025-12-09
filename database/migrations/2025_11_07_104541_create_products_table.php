@@ -17,6 +17,7 @@ return new class extends Migration
             $table->foreignId('category_id')->constrained('categories')->onDelete('cascade');
 
             $table->string('name');
+            $table->string('slug')->unique();
             $table->text('description')->nullable();
 
             // harga (integer, bukan decimal)
@@ -30,6 +31,13 @@ return new class extends Migration
 
             // gambar utama
             $table->string('image_url')->nullable();
+
+            $table->boolean('is_active')->default(true);
+
+            // tipe order yang didukung
+            $table->boolean('is_pilsuk')->default(true);
+            $table->boolean('is_seri')->default(false);
+            $table->boolean('is_po')->default(false);
 
             // preorder optional fields
             $table->enum('stock_type', ['ready', 'po'])->default('ready');

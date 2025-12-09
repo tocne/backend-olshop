@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\ProductSize;
 use App\Services\SupabaseUploader;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
@@ -122,10 +123,11 @@ class ProductController extends Controller
             $totalStock = ($validated['stock_type'] === 'ready')
                 ? array_sum(array_column($validated['sizes'], 'stock'))
                 : 0;
-
+            $validated['slug'] = Str::slug($validated['name']);
             // Create product
             $product = Product::create([
                 'name' => $validated['name'],
+                'slug' => Str::slug($validated['name']),
                 'description' => $validated['description'],
                 'price' => $validated['price'],
                 'category_id' => $validated['category_id'],
@@ -209,7 +211,7 @@ class ProductController extends Controller
     public function show($id)
     {
         try {
-            $product = Product::with(['category', 'sizes', 'colors','images'])->find($id);
+            $product = Product::with(['category', 'sizes', 'colors', 'images'])->find($id);
 
             if (! $product) {
                 return ApiResponse::error('Product not found', 404);

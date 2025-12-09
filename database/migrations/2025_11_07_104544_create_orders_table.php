@@ -12,18 +12,28 @@ return new class extends Migration
             $table->id();
 
             // USER (optional)
-            $table->foreignId('user_id')->nullable();
+            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
 
             // Order Code
             $table->string('order_code')->unique();
 
-            // Tipe order
-            $table->enum('order_type', ['suka_suka', 'seri', 'normal'])
-                ->default('suka_suka');
+            // Tipe order: pilsuk (pilih suka-suka), seri, po, normal
+            $table->enum('order_type', ['pilsuk', 'seri', 'normal', 'po'])
+                ->default('pilsuk');
 
-            // Status (WAJIB)
-            $table->enum('status', ['pending', 'paid', 'shipped', 'completed', 'canceled'])
-                ->default('pending');
+            // Status (ready stock + PO workflow)
+            $table->enum('status', [
+                'pending',            // Ready stock
+                'paid',
+                'shipped',
+                'completed',
+                'canceled',
+
+                // PO Status
+                'pending_po',         // Member baru membuat PO
+                'waiting_production', // Barang PO sedang diproduksi
+                'ready_to_ship',      // PO selesai dan siap dikirim
+            ])->default('pending');
 
             // Customer
             $table->string('customer_name')->nullable();

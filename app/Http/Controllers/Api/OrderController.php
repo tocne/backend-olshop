@@ -4,12 +4,22 @@ namespace App\Http\Controllers\Api;
 
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Models\Product;
+use App\Services\OrderService;
+use App\Http\Resources\ProductResource;
 use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
+    protected $orderService;
+
+    public function __construct(OrderService $orderService)
+    {
+        $this->orderService = $orderService;
+    }
+
     /**
      * @OA\Get(
      *     path="/api/orders",
@@ -150,103 +160,71 @@ class OrderController extends Controller
         }
     }
 
-    // store method
-    /**
-     * @OA\Post(
-     *    path="/api/orders",
-     *    summary="Create order with product sizes",
-     *    tags={"Orders"},
-     *
-     *    @OA\RequestBody(
-     *       required=true,
-     *
-     *       @OA\JsonContent(
-     *          example={
-     *             "user_id": 1,
-     *             "items": {
-     *                {"product_id": 12, "size": "M", "quantity": 2}
-     *             }
-     *          }
-     *       )
-     *    ),
-     *
-     *    @OA\Response(response=201, description="Order created")
-     * )
-     */
-    public function store(Request $request)
+    protected function handleStore(Request $request)
     {
         try {
-            $validated = $request->validate([
-                'user_id' => 'required|exists:users,id',
-                'items' => 'required|array|min:1',
-                'items.*.product_id' => 'required|exists:products,id',
-                'items.*.size' => 'required|string',
-                'items.*.quantity' => 'required|integer|min:1',
-            ]);
+            $user = $request->user();  // null jika guest
+            $mode = strtolower($request->order_mode);
 
-            $totalPrice = 0;
-
-            foreach ($validated['items'] as $item) {
-
-                $product = Product::findOrFail($item['product_id']);
-
-                $sizeData = $product->sizes()->where('size', $item['size'])->first();
-
-                if (! $sizeData) {
-                    return ApiResponse::error(
-                        "Size {$item['size']} tidak tersedia untuk produk {$product->name}",
-                        400
-                    );
-                }
-
-                // Cek stok HANYA untuk ready stock
-                if ($product->stock_type === 'ready' && $sizeData->stock < $item['quantity']) {
-                    return ApiResponse::error(
-                        "Stok size {$item['size']} tidak mencukupi. Sisa: {$sizeData->stock}",
-                        400
-                    );
-                }
-
-                $totalPrice += $product->price * $item['quantity'];
+            // Daftar mode valid
+            $validModes = ['ready', 'pilsuk', 'seri', 'po'];
+            if (! in_array($mode, $validModes)) {
+                return ApiResponse::error("Mode order tidak dikenal: {$mode}", 400);
             }
 
-            // Buat order
-            $order = Order::create([
-                'user_id' => $validated['user_id'],
-                'total_price' => $totalPrice,
-                'status' => 'pending',
-                'order_type' => 'product_size',
-            ]);
-
-            // Simpan order items
-            foreach ($validated['items'] as $item) {
-
-                $product = Product::findOrFail($item['product_id']);
-                $sizeData = $product->sizes()->where('size', $item['size'])->first();
-
-                $order->items()->create([
-                    'product_id' => $product->id,
-                    'size' => $item['size'],
-                    'quantity' => $item['quantity'],
-                    'price' => $product->price,
-                    'stock_type' => $product->stock_type,   // ⭐ NEW
-                ]);
-
-                // Hanya kurangi stok jika READY STOCK
-                if ($product->stock_type === 'ready') {
-                    $sizeData->decrement('stock', $item['quantity']);
-                }
+            // RULE: Guest tidak boleh PO
+            if ($mode === 'po' && ! $user) {
+                return ApiResponse::error('Hanya member yang dapat melakukan PO.', 403);
             }
+
+            // Eksekusi sesuai mode
+            $order = match ($mode) {
+                'ready' => $this->orderService->createReadyOrder($user, $request->all()),
+                'pilsuk' => $this->orderService->createPilsukOrder($user, $request->all()),
+                'seri' => $this->orderService->createSeriOrder($user, $request->all()),
+                'po_seri' => $this->orderService->createPoOrder($user, $request->all()),
+            };
+
+            $order->load(['items.product', 'user']);
 
             return ApiResponse::success(
-                $order->load('items.product'),
-                'Order created successfully',
-                201
+                new OrderResource($order),
+                'Order berhasil dibuat'
             );
 
-        } catch (\Throwable $th) {
-            return ApiResponse::error($th->getMessage(), 500);
+        } catch (\Throwable $e) {
+            return ApiResponse::error(
+                config('app.debug') ? $e->getMessage() : 'Gagal membuat order',
+                500
+            );
         }
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/api/orders",
+     *     summary="Create a new order",
+     *     tags={"Orders"},
+     *
+     *     @OA\RequestBody(
+     *         required=true,
+     *
+     *         @OA\JsonContent(
+     *             type="object",
+     *
+     *             @OA\Property(property="order_mode", type="string", example="ready"),
+     *             // Tambahkan properti lain sesuai kebutuhan
+     *         )
+     *     ),
+     *
+     *     @OA\Response(response=201, description="Order created"),
+     *     @OA\Response(response=400, description="Bad Request"),
+     *     @OA\Response(response=500, description="Internal Server Error")
+     * )
+     */
+    public function create(Request $request)
+    {
+        return $this->handleStore($request);
     }
 
     public function markAsPaid($id)

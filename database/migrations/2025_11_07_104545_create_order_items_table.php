@@ -19,6 +19,7 @@ return new class extends Migration
 
             // Product snapshot
             $table->string('product_name');
+            $table->string('product_code')->nullable(); // tambahan
 
             // Variant (optional)
             $table->string('size')->nullable();
@@ -27,6 +28,12 @@ return new class extends Migration
             // Quantity & price
             $table->integer('quantity');
             $table->integer('price');
+            $table->integer('total_price')->default(0);
+
+            $table->foreignId('series_id')
+                ->nullable()
+                ->constrained('series')
+                ->nullOnDelete();
 
             $table->timestamps();
         });

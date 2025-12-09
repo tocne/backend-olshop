@@ -8,6 +8,7 @@ class Product extends Model
 {
     protected $fillable = [
         'name',
+        'slug',
         'description',
         'price',
         'category_id',
@@ -23,6 +24,11 @@ class Product extends Model
     protected $casts = [
         'price' => 'integer',
     ];
+
+    public function series()
+    {
+        return $this->hasOne(Series::class);
+    }
 
     public function scopePo($query)
     {

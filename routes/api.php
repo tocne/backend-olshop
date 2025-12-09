@@ -1,8 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ProductController;
@@ -17,9 +17,9 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
 Route::get('/dashboard/sales-weekly', [DashboardController::class, 'salesWeekly']);
 
-
 // Tes endpoint bawaan
-
+Route::post('/orders', [OrderController::class, 'create']);
+Route::get('/orders/{id}', [OrderController::class, 'show']);
 Route::post('/orders/checkout', [OrderController::class, 'checkout']);
 Route::get('/orders/code/{order_code}', [OrderController::class, 'showByCode']);
 Route::get('/admin/orders', [OrderController::class, 'adminIndex']);
@@ -43,13 +43,11 @@ Route::put('/orders/{id}/ship', [OrderController::class, 'ship']);
 Route::put('/orders/{id}/complete', [OrderController::class, 'complete']);
 Route::post('/upload', [UploadController::class, 'store']);
 
-//category
+// category
 Route::get('/products/category/{categoryPrefix}', [ProductController::class, 'getProductsByCategory']);
-
 
 Route::apiResource('categories', CategoryController::class);
 Route::apiResource('products', ProductController::class);
-Route::apiResource('orders', OrderController::class);
 Route::apiResource('series', SeriesController::class);
 
 Route::middleware('auth:sanctum')->group(function () {

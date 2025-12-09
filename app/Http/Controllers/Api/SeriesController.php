@@ -7,7 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Series;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
+use App\Services\SeriesService;
 
 class SeriesController extends Controller
 {
@@ -62,9 +62,9 @@ class SeriesController extends Controller
     public function index()
     {
         try {
-            $series = Series::with('products')->get();
+    $series = Series::with(['product', 'items', 'products'])->latest()->get();
 
-            return ApiResponse::success($series, 'All series retrieved');
+    return ApiResponse::success($series, 'Series list retrieved');
         } catch (\Throwable $th) {
             Log::error('Series index error: '.$th->getMessage());
 
@@ -114,33 +114,44 @@ class SeriesController extends Controller
      *     @OA\Response(response=500, description="Internal Server Error")
      * )
      */
+    protected $service;
+
+    public function __construct(SeriesService $service)
+    {
+        $this->service = $service;
+    }
+
     public function store(Request $request)
     {
         try {
             $validated = $request->validate([
-                'name' => 'required',
+                'name' => 'required|string',
                 'description' => 'nullable|string',
-                'price' => 'required|numeric',
-                'product_ids' => 'required|array',
-                'product_ids.*' => 'required|exists:products,id',
+                'price' => 'required|integer|min:1',
+
+                // optional
+                'category_id' => 'nullable|exists:categories,id',
+                'stock_type' => 'nullable|in:ready,po',
+
+                // Model A (size-based items)
+                'items' => 'nullable|array',
+                'items.*.size' => 'required|string',
+                'items.*.quantity' => 'required|integer|min:1',
+
+                // Model B (multi-product bundle)
+                'bundle_products' => 'nullable|array',
+                'bundle_products.*.product_id' => 'required|exists:products,id',
+                'bundle_products.*.quantity' => 'required|integer|min:1',
             ]);
 
-            $series = Series::create([
-                'name' => $validated['name'],
-                'description' => $validated['description'] ?? null,
-                'price' => $validated['price'],
-            ]);
+            $series = $this->service->createSeries($validated);
 
-            $series->series_code = 'SER'.strtoupper(Str::random(6));
-            $series->save();
-
-            $series->products()->sync($validated['product_ids']);
-
-            return ApiResponse::success($series->load('products'), 'Series created successfully');
+            return ApiResponse::success(
+                $series,
+                'Series created successfully'
+            );
 
         } catch (\Throwable $th) {
-            Log::error('Series store error: '.$th->getMessage());
-
             return ApiResponse::error($th->getMessage(), 500);
         }
     }
@@ -180,7 +191,7 @@ class SeriesController extends Controller
     public function show($id)
     {
         try {
-            $series = Series::with('products')->find($id);
+            $series = Series::with('products', 'items', 'products')->find($id);
 
             if (! $series) {
                 return ApiResponse::error('Series not found', 404);
@@ -235,38 +246,74 @@ class SeriesController extends Controller
      * )
      */
     public function update(Request $request, $id)
-    {
-        try {
-            $series = Series::find($id);
+{
+    try {
+        $validated = $request->validate([
+            'name' => 'nullable|string',
+            'description' => 'nullable|string',
+            'price' => 'nullable|integer|min:1',
 
-            if (! $series) {
-                return ApiResponse::error('Series not found', 404);
+            // Model A
+            'items' => 'nullable|array',
+            'items.*.size' => 'required|string',
+            'items.*.quantity' => 'required|integer|min:1',
+
+            // Model B
+            'bundle_products' => 'nullable|array',
+            'bundle_products.*.product_id' => 'required|exists:products,id',
+            'bundle_products.*.quantity' => 'required|integer|min:1',
+        ]);
+
+        $series = Series::with(['product'])->findOrFail($id);
+
+        DB::transaction(function () use ($validated, $series) {
+
+            // Update product seri
+            $series->product->update([
+                'name' => $validated['name'] ?? $series->name,
+                'slug' => isset($validated['name'])
+                    ? Str::slug($validated['name'])
+                    : $series->product->slug,
+                'price' => $validated['price'] ?? $series->price,
+            ]);
+
+            // Update main series table
+            $series->update([
+                'name' => $validated['name'] ?? $series->name,
+                'description' => $validated['description'] ?? $series->description,
+                'price' => $validated['price'] ?? $series->price,
+            ]);
+
+            // Reset Model A (size-based)
+            if (isset($validated['items'])) {
+                $series->items()->delete();
+                foreach ($validated['items'] as $item) {
+                    $series->items()->create($item);
+                }
             }
 
-            $validated = $request->validate([
-                'name' => 'required',
-                'description' => 'nullable|string',
-                'price' => 'required|numeric',
-                'product_ids' => 'required|array',
-                'product_ids.*' => 'required|exists:products,id',
-            ]);
+            // Reset Model B (bundle products)
+            if (isset($validated['bundle_products'])) {
+                $series->products()->detach(); // remove old
+                foreach ($validated['bundle_products'] as $bp) {
+                    $series->products()->attach(
+                        $bp['product_id'],
+                        ['quantity' => $bp['quantity']]
+                    );
+                }
+            }
+        });
 
-            $series->update([
-                'name' => $validated['name'],
-                'description' => $validated['description'] ?? null,
-                'price' => $validated['price'],
-            ]);
+        return ApiResponse::success(
+            $series->fresh()->load(['product', 'items', 'products']),
+            'Series updated successfully'
+        );
 
-            $series->products()->sync($validated['product_ids']);
-
-            return ApiResponse::success($series->load('products'), 'Series updated successfully');
-
-        } catch (\Throwable $th) {
-            Log::error('Series update error: '.$th->getMessage());
-
-            return ApiResponse::error($th->getMessage(), 500);
-        }
+    } catch (\Throwable $th) {
+        return ApiResponse::error($th->getMessage(), 500);
     }
+}
+
 
     /**
      * @OA\Delete(
@@ -289,23 +336,26 @@ class SeriesController extends Controller
      * )
      */
     public function destroy($id)
-    {
-        try {
-            $series = Series::find($id);
+{
+    try {
+        $series = Series::findOrFail($id);
+        $product = $series->product;
 
-            if (! $series) {
-                return ApiResponse::error('Series not found', 404);
-            }
-
+        DB::transaction(function () use ($series, $product) {
+            $series->items()->delete();
             $series->products()->detach();
             $series->delete();
 
-            return ApiResponse::success(null, 'Series deleted successfully');
+            if ($product) {
+                $product->delete();
+            }
+        });
 
-        } catch (\Throwable $th) {
-            Log::error('Series destroy error: '.$th->getMessage());
+        return ApiResponse::success(null, 'Series deleted successfully');
 
-            return ApiResponse::error($th->getMessage(), 500);
-        }
+    } catch (\Throwable $th) {
+        return ApiResponse::error($th->getMessage(), 500);
     }
+}
+
 }

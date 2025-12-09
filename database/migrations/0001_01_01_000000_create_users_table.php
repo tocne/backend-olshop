@@ -19,6 +19,11 @@ return new class extends Migration
             $table->string('password');
             $table->string('phone')->nullable();
             $table->text('address')->nullable();
+
+            // Tambahan penting untuk PO
+            $table->boolean('is_member')->default(false);
+            $table->date('member_since')->nullable();
+
             $table->rememberToken();
             $table->timestamps();
         });

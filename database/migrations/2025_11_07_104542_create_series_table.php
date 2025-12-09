@@ -10,10 +10,17 @@ return new class extends Migration
     {
         Schema::create('series', function (Blueprint $table) {
             $table->id();
+
+            // relasi ke produk
+            $table->foreignId('product_id')->constrained('products')->onDelete('cascade');
+
             $table->string('name');
             $table->text('description')->nullable();
-            $table->decimal('price', 10, 2)->default(0);
-            $table->string('series_code')->nullable();
+
+            // harga paket harus integer (lebih cocok untuk e-commerce Indonesia)
+            $table->integer('price')->default(0);
+
+            $table->string('series_code')->unique();
             $table->timestamps();
         });
     }
