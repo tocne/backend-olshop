@@ -23,7 +23,7 @@ class SeriesService
                 'category_id' => $data['category_id'] ?? 1,
                 'stock_type' => $data['stock_type'] ?? 'ready',
                 'is_seri' => true,
-                'product_code' => $this->generateSeriesCode(),
+                'product_code' => $this->generateSeriesCodeWithPrefix('SP'),
             ]);
 
             // Create series detail
