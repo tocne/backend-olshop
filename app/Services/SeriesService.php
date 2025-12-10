@@ -20,7 +20,7 @@ class SeriesService
                 'name' => $data['name'],
                 'slug' => Str::slug($data['name']),
                 'price' => $data['price'],
-                'category_id' => $data['category_id'],
+                'category_id' => $data['category_id'] ?? 1,
                 'stock_type' => $data['stock_type'] ?? 'ready',
                 'is_seri' => true,
                 'product_code' => $this->generateSeriesCode(),
