@@ -25,6 +25,15 @@ class Product extends Model
         'price' => 'integer',
     ];
 
+    public function reduceStock($qty)
+    {
+        if ($this->stock - $qty < 0) {
+            throw new \Exception("Stok tidak mencukupi untuk produk {$this->name}");
+        }
+
+        $this->decrement('stock', $qty);
+    }
+
     public function series()
     {
         return $this->hasOne(Series::class);

@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('series_products', function (Blueprint $table) {
+        Schema::table('series_products', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('series_id');
             $table->unsignedBigInteger('product_id');

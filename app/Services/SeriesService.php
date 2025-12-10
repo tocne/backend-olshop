@@ -6,6 +6,8 @@ use App\Models\Product;
 use App\Models\Series;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use App\Models\ProductImage;
+
 
 class SeriesService
 {
@@ -32,6 +34,21 @@ class SeriesService
                 'price' => $data['price'],
                 'series_code' => 'SER-'.strtoupper(Str::random(6)),
             ]);
+
+            if (! empty($data['product_ids'])) {
+                $firstProductId = $data['product_ids'][0];
+
+                $thumbnail = ProductImage::where('product_id', $firstProductId)
+                    ->where('is_primary', true)
+                    ->value('image_url');
+
+                if (! $thumbnail) {
+                    $thumbnail = ProductImage::where('product_id', $firstProductId)
+                        ->value('image_url');
+                }
+
+                $series->update(['thumbnail' => $thumbnail]);
+            }
 
             // Add Model A (size-based items)
             if (! empty($data['items'])) {

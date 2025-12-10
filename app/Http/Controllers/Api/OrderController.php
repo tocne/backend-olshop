@@ -8,7 +8,6 @@ use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Models\Product;
 use App\Services\OrderService;
-use App\Http\Resources\ProductResource;
 use Illuminate\Http\Request;
 
 class OrderController extends Controller
@@ -162,42 +161,28 @@ class OrderController extends Controller
 
     protected function handleStore(Request $request)
     {
-        try {
-            $user = $request->user();  // null jika guest
-            $mode = strtolower($request->order_mode);
+        $user = $request->user();
+        $mode = strtolower($request->order_mode);
 
-            // Daftar mode valid
-            $validModes = ['ready', 'pilsuk', 'seri', 'po'];
-            if (! in_array($mode, $validModes)) {
-                return ApiResponse::error("Mode order tidak dikenal: {$mode}", 400);
-            }
+        // memastikan shipping_cost selalu ada
+        $data = $request->all();
+        $data['shipping_cost'] = $data['shipping_cost'] ?? 0;
 
-            // RULE: Guest tidak boleh PO
-            if ($mode === 'po' && ! $user) {
-                return ApiResponse::error('Hanya member yang dapat melakukan PO.', 403);
-            }
+        return match ($mode) {
+            'ready' => new OrderResource(
+                $this->orderService->createReadyOrder($user, $data)->load('items')
+            ),
 
-            // Eksekusi sesuai mode
-            $order = match ($mode) {
-                'ready' => $this->orderService->createReadyOrder($user, $request->all()),
-                'pilsuk' => $this->orderService->createPilsukOrder($user, $request->all()),
-                'seri' => $this->orderService->createSeriOrder($user, $request->all()),
-                'po_seri' => $this->orderService->createPoOrder($user, $request->all()),
-            };
+            'pilsuk' => new OrderResource(
+                $this->orderService->createPilsukOrder($user, $data)->load('items')
+            ),
 
-            $order->load(['items.product', 'user']);
+            'seri' => new OrderResource(
+                $this->orderService->createSeriOrder($user, $data)->load('items')
+            ),
 
-            return ApiResponse::success(
-                new OrderResource($order),
-                'Order berhasil dibuat'
-            );
-
-        } catch (\Throwable $e) {
-            return ApiResponse::error(
-                config('app.debug') ? $e->getMessage() : 'Gagal membuat order',
-                500
-            );
-        }
+            default => ApiResponse::error("Mode order tidak dikenal: {$mode}", 400),
+        };
     }
 
     /**
