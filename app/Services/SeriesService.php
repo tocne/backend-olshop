@@ -3,11 +3,10 @@
 namespace App\Services;
 
 use App\Models\Product;
+use App\Models\ProductImage;
 use App\Models\Series;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use App\Models\ProductImage;
-
 
 class SeriesService
 {
@@ -77,5 +76,10 @@ class SeriesService
     private function generateSeriesCode()
     {
         return 'SER-'.rand(1000, 9999);
+    }
+
+    private function generateSeriesCodeWithPrefix($prefix)
+    {
+        return $prefix.rand(1000, 9999);
     }
 }
