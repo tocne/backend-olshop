@@ -25,18 +25,25 @@ class ProductController extends Controller
     {
         try {
             $products = Product::with(['category', 'sizes', 'colors'])
-                ->where(function ($q) {
+    ->where(function ($q) {
 
-                    // PRODUK READY: hanya tampil jika punya sizes
-                    $q->where(function ($r) {
-                        $r->where('stock_type', 'ready')
-                            ->whereHas('sizes');
-                    })
+        // READY biasa (harus punya size)
+        $q->where(function ($r) {
+            $r->where('stock_type', 'ready')
+              ->whereHas('sizes');
+        })
 
-                    // PRODUK PO: tampil walaupun tanpa sizes
-                        ->orWhere('stock_type', 'po');
-                })
-                ->get();
+        // READY seri (tidak butuh sizes)
+        ->orWhere(function ($r) {
+            $r->where('stock_type', 'ready')
+              ->where('is_seri', true);
+        })
+
+        // PO
+        ->orWhere('stock_type', 'po');
+    })
+    ->get();
+
 
             return ApiResponse::success($products, 'All products retrieved');
 
