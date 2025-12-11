@@ -47,6 +47,7 @@ class SeriesService
                 }
 
                 $series->update(['thumbnail' => $thumbnail]);
+                $product->update(['image_url' => $thumbnail]);
             }
 
             // Add Model A (size-based items)
