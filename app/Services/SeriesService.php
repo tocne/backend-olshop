@@ -35,20 +35,25 @@ class SeriesService
             ]);
 
             if (! empty($data['product_ids'])) {
-                $firstProductId = $data['product_ids'][0];
+    $firstProductId = $data['product_ids'][0];
 
-                $thumbnail = ProductImage::where('product_id', $firstProductId)
-                    ->where('is_primary', true)
-                    ->value('image_url');
+    // 1. Ambil dari product.image_url dulu
+    $thumbnail = Product::where('id', $firstProductId)->value('image_url');
 
-                if (! $thumbnail) {
-                    $thumbnail = ProductImage::where('product_id', $firstProductId)
-                        ->value('image_url');
-                }
+    // 2. Kalau null, ambil gambar pertama dari ProductImage
+    if (! $thumbnail) {
+        $thumbnail = ProductImage::where('product_id', $firstProductId)
+            ->orderBy('id', 'asc')
+            ->value('image_url');
+    }
 
-                $series->update(['thumbnail' => $thumbnail]);
-                $product->update(['image_url' => $thumbnail]);
-            }
+    // 3. Update ke series dan product
+    if ($thumbnail) {
+        $series->update(['thumbnail' => $thumbnail]);
+        $product->update(['image_url' => $thumbnail]);
+    }
+}
+
 
             // Add Model A (size-based items)
             if (! empty($data['items'])) {
