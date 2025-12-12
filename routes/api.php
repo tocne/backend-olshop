@@ -36,12 +36,15 @@ Route::put('/admin/orders/{id}/complete', [OrderController::class, 'complete']);
 Route::post('/product-sizes', [ProductSizeController::class, 'store']);
 Route::put('/product-sizes/{id}', [ProductSizeController::class, 'update']);
 Route::delete('/product-sizes/{id}', [ProductSizeController::class, 'destroy']);
+Route::delete('/series/{id}', [SeriesController::class, 'destroy']);
+Route::delete('/series', [SeriesController::class, 'destroyAll']);
 
 Route::post('/payments', [PaymentController::class, 'store']);
 Route::get('/payments/{id}', [PaymentController::class, 'show']);
 Route::put('/orders/{id}/ship', [OrderController::class, 'ship']);
 Route::put('/orders/{id}/complete', [OrderController::class, 'complete']);
 Route::post('/upload', [UploadController::class, 'store']);
+
 
 // category
 Route::get('/products/category/{categoryPrefix}', [ProductController::class, 'getProductsByCategory']);

@@ -11,81 +11,88 @@ use Illuminate\Support\Str;
 class SeriesService
 {
     public function createSeries(array $data)
-    {
-        return DB::transaction(function () use ($data) {
+{
+    return DB::transaction(function () use ($data) {
 
-            // Auto create product for this series
-            $product = Product::create([
-                'name' => $data['name'],
-                'slug' => Str::slug($data['name']),
-                'price' => $data['price'],
-                'category_id' => $data['category_id'] ?? 4,
-                'stock_type' => $data['stock_type'] ?? 'ready',
-                'is_seri' => true,
-                'product_code' => $this->generateSeriesCodeWithPrefix('SP'),
-            ]);
+        // 1. Buat product induk seri
+        $product = Product::create([
+            'name'         => $data['name'],
+            'slug'         => Str::slug($data['name']),
+            'price'        => $data['price'],
+            'category_id'  => $data['category_id'] ?? 4,
+            'stock_type'   => 'ready',
+            'is_seri'      => true,
+            'product_code' => $this->generateSeriesCodeWithPrefix('SP'),
+        ]);
 
-            // Create series detail
-            $series = Series::create([
-                'product_id' => $product->id,
-                'name' => $data['name'],
-                'description' => $data['description'] ?? null,
-                'price' => $data['price'],
-                'series_code' => 'SER-'.strtoupper(Str::random(6)),
-            ]);
+        // 2. Buat record series
+        $series = Series::create([
+            'product_id'  => $product->id,
+            'name'        => $data['name'],
+            'description' => $data['description'] ?? null,
+            'price'       => $data['price'],
+            'series_code' => 'SER-' . strtoupper(Str::random(6)),
+        ]);
 
-            if (! empty($data['product_ids'])) {
-    $firstProductId = $data['product_ids'][0];
 
-    // 1. Ambil dari product.image_url dulu
-    $thumbnail = Product::where('id', $firstProductId)->value('image_url');
+        // 3. Insert size-based items
+        if (!empty($data['items'])) {
+            foreach ($data['items'] as $item) {
+                $series->items()->create([
+                    'size'     => $item['size'],
+                    'quantity' => $item['quantity'],
+                ]);
+            }
+        }
 
-    // 2. Kalau null, ambil gambar pertama dari ProductImage
-    if (! $thumbnail) {
-        $thumbnail = ProductImage::where('product_id', $firstProductId)
-            ->orderBy('id', 'asc')
-            ->value('image_url');
-    }
+        // 4. Insert bundled products
+        if (!empty($data['bundle_products'])) {
+            foreach ($data['bundle_products'] as $bp) {
+                $series->products()->attach(
+                    $bp['product_id'],
+                    ['quantity' => $bp['quantity']]
+                );
+            }
+        }
 
-    // 3. Update ke series dan product
-    if ($thumbnail) {
-        $series->update(['thumbnail' => $thumbnail]);
-        $product->update(['image_url' => $thumbnail]);
-    }
+        // 5. AMBIL THUMBNAIL OTOMATIS
+        $thumbnail = null;
+
+        // Prioritas 1: Produk bundle pertama
+        if (!empty($data['bundle_products'])) {
+            $firstProductId = $data['bundle_products'][0]['product_id'];
+
+            // Ambil langsung dari product.image_url
+            $thumbnail = Product::where('id', $firstProductId)->value('image_url');
+
+            // Kalau null → ambil ProductImage pertama
+            if (!$thumbnail) {
+                $thumbnail = ProductImage::where('product_id', $firstProductId)
+                    ->orderBy('id', 'asc')
+                    ->value('image_url');
+            }
+        }
+
+        // Prioritas 2: fallback ke gambar product asal jika ada
+        if (!$thumbnail) {
+            $thumbnail = $product->image_url;
+        }
+
+        // Update jika dapat thumbnail
+        if ($thumbnail) {
+            $product->update(['image_url' => $thumbnail]);
+            $series->update(['thumbnail' => $thumbnail]);
+        }
+
+        return $series->fresh()->load(['product', 'items', 'products']);
+    });
 }
-
-
-            // Add Model A (size-based items)
-            if (! empty($data['items'])) {
-                foreach ($data['items'] as $item) {
-                    $series->items()->create([
-                        'size' => $item['size'],
-                        'quantity' => $item['quantity'],
-                    ]);
-                }
-            }
-
-            // Add Model B (bundle products)
-            if (! empty($data['bundle_products'])) {
-                foreach ($data['bundle_products'] as $bp) {
-                    $series->products()->attach(
-                        $bp['product_id'],
-                        ['quantity' => $bp['quantity']]
-                    );
-                }
-            }
-
-            return $series->load(['product', 'items', 'products']);
-        });
-    }
-
-    private function generateSeriesCode()
-    {
-        return 'SER-'.rand(1000, 9999);
-    }
-
     private function generateSeriesCodeWithPrefix($prefix)
     {
-        return $prefix.rand(1000, 9999);
+        do {
+            $code = $prefix . '-' . strtoupper(Str::random(6));
+        } while (Series::where('series_code', $code)->exists());
+
+        return $code;
     }
 }

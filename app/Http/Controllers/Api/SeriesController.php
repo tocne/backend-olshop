@@ -2,360 +2,251 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Models\Product;
+use App\Models\ProductImage;
 use App\Models\Series;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use App\Services\SeriesService;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use App\Helpers\ApiResponse;
 
 class SeriesController extends Controller
 {
-    /**
-     * @OA\Get(
-     *     path="/api/series",
-     *     tags={"Series"},
-     *     summary="Get all series",
-     *     description="Retrieve all series along with their products",
-     *
-     *     @OA\Response(
-     *         response=200,
-     *         description="All series retrieved",
-     *
-     *         @OA\JsonContent(
-     *             type="object",
-     *
-     *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="message", type="string", example="All series retrieved"),
-     *             @OA\Property(
-     *                 property="data",
-     *                 type="array",
-     *
-     *                 @OA\Items(
-     *
-     *                     @OA\Property(property="id", type="integer", example=1),
-     *                     @OA\Property(property="name", type="string", example="Bundle Hemat"),
-     *                     @OA\Property(property="description", type="string", example="Paket hemat hoodie anak"),
-     *                     @OA\Property(property="price", type="number", example=120000),
-     *                     @OA\Property(
-     *                         property="products",
-     *                         type="array",
-     *
-     *                         @OA\Items(
-     *
-     *                             @OA\Property(property="id", type="integer"),
-     *                             @OA\Property(property="name", type="string"),
-     *                             @OA\Property(property="price", type="number")
-     *                         )
-     *                     )
-     *                 )
-     *             )
-     *         )
-     *     ),
-     *
-     *     @OA\Response(
-     *         response=500,
-     *         description="Internal Server Error"
-     *     )
-     * )
-     */
+    // ==========================================================
+    // GET ALL SERIES
+    // ==========================================================
     public function index()
     {
         try {
-    $series = Series::with(['product', 'items', 'products'])->latest()->get();
+            $series = Series::with(['product', 'items', 'products'])->get();
 
-    return ApiResponse::success($series, 'Series list retrieved');
-        } catch (\Throwable $th) {
-            Log::error('Series index error: '.$th->getMessage());
-
-            return ApiResponse::error($th->getMessage(), 500);
+            return ApiResponse::success($series, 'Series list retrieved');
+        } catch (\Throwable $e) {
+            return ApiResponse::error($e->getMessage(), 500);
         }
     }
 
-    /**
-     * @OA\Post(
-     *     path="/api/series",
-     *     tags={"Series"},
-     *     summary="Create a new series",
-     *     description="Create a new product bundle (series) with selected product IDs",
-     *
-     *     @OA\RequestBody(
-     *         required=true,
-     *
-     *         @OA\JsonContent(
-     *             required={"name","price","product_ids"},
-     *
-     *             @OA\Property(property="name", type="string", example="Paket Hoodie Anak"),
-     *             @OA\Property(property="description", type="string", example="Paket bundling hoodie 2 pcs"),
-     *             @OA\Property(property="price", type="number", example=120000),
-     *             @OA\Property(
-     *                 property="product_ids",
-     *                 type="array",
-     *
-     *                 @OA\Items(type="integer", example=1)
-     *             )
-     *         )
-     *     ),
-     *
-     *     @OA\Response(
-     *         response=200,
-     *         description="Series created successfully",
-     *
-     *         @OA\JsonContent(
-     *             type="object",
-     *
-     *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="message", type="string", example="Series created successfully"),
-     *             @OA\Property(property="data", type="object")
-     *         )
-     *     ),
-     *
-     *     @OA\Response(response=422, description="Validation error"),
-     *     @OA\Response(response=500, description="Internal Server Error")
-     * )
-     */
-    protected $service;
-
-    public function __construct(SeriesService $service)
-    {
-        $this->service = $service;
-    }
-
-    public function store(Request $request)
-    {
-        try {
-            $validated = $request->validate([
-                'name' => 'required|string',
-                'description' => 'nullable|string',
-                'price' => 'required|integer|min:1',
-
-                // optional
-                'category_id' => 'nullable|exists:categories,id',
-                'stock_type' => 'nullable|in:ready,po',
-
-                // Model A (size-based items)
-                'items' => 'nullable|array',
-                'items.*.size' => 'required|string',
-                'items.*.quantity' => 'required|integer|min:1',
-
-                // Model B (multi-product bundle)
-                'bundle_products' => 'nullable|array',
-                'bundle_products.*.product_id' => 'required|exists:products,id',
-                'bundle_products.*.quantity' => 'required|integer|min:1',
-            ]);
-
-            $series = $this->service->createSeries($validated);
-
-            return ApiResponse::success(
-                $series,
-                'Series created successfully'
-            );
-
-        } catch (\Throwable $th) {
-            return ApiResponse::error($th->getMessage(), 500);
-        }
-    }
-
-    /**
-     * @OA\Get(
-     *     path="/api/series/{id}",
-     *     tags={"Series"},
-     *     summary="Get series detail",
-     *
-     *     @OA\Parameter(
-     *         name="id",
-     *         in="path",
-     *         required=true,
-     *         description="Series ID",
-     *
-     *         @OA\Schema(type="integer", example=1)
-     *     ),
-     *
-     *     @OA\Response(
-     *         response=200,
-     *         description="Series retrieved",
-     *
-     *         @OA\JsonContent(
-     *             type="object",
-     *
-     *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="message", type="string", example="Series retrieved"),
-     *             @OA\Property(property="data", type="object")
-     *         )
-     *     ),
-     *
-     *     @OA\Response(response=404, description="Series not found"),
-     *     @OA\Response(response=500, description="Internal Server Error")
-     * )
-     */
+    // ==========================================================
+    // GET ONE SERIES
+    // ==========================================================
     public function show($id)
     {
         try {
-            $series = Series::with('products', 'items', 'products')->find($id);
+            $series = Series::with(['product', 'items', 'products'])->find($id);
 
             if (! $series) {
                 return ApiResponse::error('Series not found', 404);
             }
 
-            return ApiResponse::success($series, 'Series retrieved');
-
-        } catch (\Throwable $th) {
-            Log::error('Series show error: '.$th->getMessage());
-
-            return ApiResponse::error($th->getMessage(), 500);
+            return ApiResponse::success($series, 'Series found');
+        } catch (\Throwable $e) {
+            return ApiResponse::error($e->getMessage(), 500);
         }
     }
 
-    /**
-     * @OA\Put(
-     *     path="/api/series/{id}",
-     *     tags={"Series"},
-     *     summary="Update an existing series",
-     *
-     *     @OA\Parameter(
-     *         name="id",
-     *         in="path",
-     *         required=true,
-     *         description="Series ID",
-     *
-     *         @OA\Schema(type="integer", example=1)
-     *     ),
-     *
-     *     @OA\RequestBody(
-     *         required=true,
-     *
-     *         @OA\JsonContent(
-     *             required={"name","price","product_ids"},
-     *
-     *             @OA\Property(property="name", type="string", example="Paket Hoodie Anak Diskon"),
-     *             @OA\Property(property="description", type="string", example="Bundle hoodie updated"),
-     *             @OA\Property(property="price", type="number", example=100000),
-     *             @OA\Property(
-     *                 property="product_ids",
-     *                 type="array",
-     *
-     *                 @OA\Items(type="integer", example=1)
-     *             )
-     *         )
-     *     ),
-     *
-     *     @OA\Response(response=200, description="Series updated successfully"),
-     *     @OA\Response(response=404, description="Series not found"),
-     *     @OA\Response(response=422, description="Validation error"),
-     *     @OA\Response(response=500, description="Internal Server Error")
-     * )
-     */
+    // ==========================================================
+    // CREATE SERIES
+    // ==========================================================
+    public function store(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'name'        => 'required|string|max:255',
+                'description' => 'nullable|string',
+                'price'       => 'required|numeric|min:0',
+                'category_id' => 'required|exists:categories,id',
+
+                'items'                 => 'nullable|array',
+                'items.*.size'          => 'required|string',
+                'items.*.quantity'      => 'required|integer|min:1',
+
+                'bundle_products'       => 'nullable|array',
+                'bundle_products.*.product_id' => 'required|exists:products,id',
+                'bundle_products.*.quantity'   => 'required|integer|min:1',
+            ]);
+
+            $series = DB::transaction(function () use ($validated) {
+
+                // 1. Create product for series
+                $product = Product::create([
+                    'name'        => $validated['name'],
+                    'slug'        => Str::slug($validated['name']),
+                    'price'       => $validated['price'],
+                    'category_id' => $validated['category_id'],
+                    'stock_type'  => 'ready',
+                    'is_seri'     => true,
+                    'product_code'=> $this->generateSeriesCode('SP'),
+                ]);
+
+                // 2. Create series record
+                $series = Series::create([
+                    'product_id'  => $product->id,
+                    'name'        => $validated['name'],
+                    'description' => $validated['description'] ?? null,
+                    'price'       => $validated['price'],
+                    'series_code' => 'SER-' . strtoupper(Str::random(6)),
+                ]);
+
+                // 3. INSERT ITEMS (size-based)
+                if (!empty($validated['items'])) {
+                    foreach ($validated['items'] as $item) {
+                        $series->items()->create([
+                            'size'     => $item['size'],
+                            'quantity' => $item['quantity'],
+                        ]);
+                    }
+                }
+
+                // 4. INSERT BUNDLE PRODUCTS
+                if (!empty($validated['bundle_products'])) {
+                    foreach ($validated['bundle_products'] as $bp) {
+                        $series->products()->attach(
+                            $bp['product_id'],
+                            ['quantity' => $bp['quantity']]
+                        );
+                    }
+                }
+
+                // 5. THUMBNAIL LOGIC
+                $thumbnail = $this->resolveThumbnail($validated);
+
+                if ($thumbnail) {
+                    $series->update(['thumbnail' => $thumbnail]);
+                    $product->update(['image_url' => $thumbnail]);
+                }
+
+                return $series->fresh()->load(['product', 'items', 'products']);
+            });
+
+            return ApiResponse::success($series, 'Series created successfully');
+
+        } catch (\Throwable $e) {
+            return ApiResponse::error($e->getMessage(), 500);
+        }
+    }
+
+    // ==========================================================
+    // UPDATE SERIES (optional fields)
+    // ==========================================================
     public function update(Request $request, $id)
-{
-    try {
-        $validated = $request->validate([
-            'name' => 'nullable|string',
-            'description' => 'nullable|string',
-            'price' => 'nullable|integer|min:1',
+    {
+        try {
+            $series = Series::with('product')->find($id);
 
-            // Model A
-            'items' => 'nullable|array',
-            'items.*.size' => 'required|string',
-            'items.*.quantity' => 'required|integer|min:1',
-
-            // Model B
-            'bundle_products' => 'nullable|array',
-            'bundle_products.*.product_id' => 'required|exists:products,id',
-            'bundle_products.*.quantity' => 'required|integer|min:1',
-        ]);
-
-        $series = Series::with(['product'])->findOrFail($id);
-
-        DB::transaction(function () use ($validated, $series) {
-
-            // Update product seri
-            $series->product->update([
-                'name' => $validated['name'] ?? $series->name,
-                'slug' => isset($validated['name'])
-                    ? Str::slug($validated['name'])
-                    : $series->product->slug,
-                'price' => $validated['price'] ?? $series->price,
-            ]);
-
-            // Update main series table
-            $series->update([
-                'name' => $validated['name'] ?? $series->name,
-                'description' => $validated['description'] ?? $series->description,
-                'price' => $validated['price'] ?? $series->price,
-            ]);
-
-            // Reset Model A (size-based)
-            if (isset($validated['items'])) {
-                $series->items()->delete();
-                foreach ($validated['items'] as $item) {
-                    $series->items()->create($item);
-                }
+            if (! $series) {
+                return ApiResponse::error('Series not found', 404);
             }
 
-            // Reset Model B (bundle products)
-            if (isset($validated['bundle_products'])) {
-                $series->products()->detach(); // remove old
-                foreach ($validated['bundle_products'] as $bp) {
-                    $series->products()->attach(
-                        $bp['product_id'],
-                        ['quantity' => $bp['quantity']]
-                    );
-                }
+            $validated = $request->validate([
+                'name'        => 'nullable|string|max:255',
+                'description' => 'nullable|string',
+                'price'       => 'nullable|numeric|min:0'
+            ]);
+
+            $series->update($validated);
+
+            if (isset($validated['name'])) {
+                $series->product->update([
+                    'name' => $validated['name'],
+                    'slug' => Str::slug($validated['name'])
+                ]);
             }
-        });
 
-        return ApiResponse::success(
-            $series->fresh()->load(['product', 'items', 'products']),
-            'Series updated successfully'
-        );
+            if (isset($validated['price'])) {
+                $series->product->update(['price' => $validated['price']]);
+            }
 
-    } catch (\Throwable $th) {
-        return ApiResponse::error($th->getMessage(), 500);
+            return ApiResponse::success(
+                $series->fresh()->load(['product', 'items', 'products']),
+                'Series updated successfully'
+            );
+
+        } catch (\Throwable $e) {
+            return ApiResponse::error($e->getMessage(), 500);
+        }
     }
-}
 
-
-    /**
-     * @OA\Delete(
-     *     path="/api/series/{id}",
-     *     tags={"Series"},
-     *     summary="Delete a series",
-     *
-     *     @OA\Parameter(
-     *         name="id",
-     *         in="path",
-     *         required=true,
-     *         description="Series ID",
-     *
-     *         @OA\Schema(type="integer", example=1)
-     *     ),
-     *
-     *     @OA\Response(response=200, description="Series deleted successfully"),
-     *     @OA\Response(response=404, description="Series not found"),
-     *     @OA\Response(response=500, description="Internal Server Error")
-     * )
-     */
+    // ==========================================================
+    // DELETE ONE SERIES
+    // ==========================================================
     public function destroy($id)
-{
-    try {
-        $series = Series::findOrFail($id);
-        $product = $series->product;
+    {
+        try {
+            $series = Series::with(['product', 'products', 'items'])->find($id);
 
-        DB::transaction(function () use ($series, $product) {
-            $series->items()->delete();
-            $series->products()->detach();
-            $series->delete();
-
-            if ($product) {
-                $product->delete();
+            if (! $series) {
+                return ApiResponse::error('Series not found', 404);
             }
-        });
 
-        return ApiResponse::success(null, 'Series deleted successfully');
+            DB::transaction(function () use ($series) {
 
-    } catch (\Throwable $th) {
-        return ApiResponse::error($th->getMessage(), 500);
+                $series->products()->detach();
+                $series->items()->delete();
+
+                if ($series->product) {
+                    $series->product->delete();
+                }
+
+                $series->delete();
+            });
+
+            return ApiResponse::success(null, 'Series deleted successfully');
+
+        } catch (\Throwable $e) {
+            return ApiResponse::error($e->getMessage(), 500);
+        }
     }
-}
 
+    // ==========================================================
+    // DELETE ALL SERIES
+    // ==========================================================
+    public function destroyAll()
+    {
+        try {
+            DB::transaction(function () {
+
+                DB::table('series_products')->delete();
+                DB::table('series_items')->delete();
+                Product::where('is_seri', true)->delete();
+                Series::truncate();
+            });
+
+            return ApiResponse::success(null, 'All series deleted successfully');
+
+        } catch (\Throwable $e) {
+            return ApiResponse::error($e->getMessage(), 500);
+        }
+    }
+
+    // ==========================================================
+    // HELPER: GENERATE SP CODE
+    // ==========================================================
+    private function generateSeriesCode($prefix)
+    {
+        return $prefix . strtoupper(Str::random(6));
+    }
+
+    // ==========================================================
+    // HELPER: RESOLVE THUMBNAIL
+    // ==========================================================
+    private function resolveThumbnail($data)
+    {
+        $thumbnail = null;
+
+        // Prioritas 1: Produk bundle pertama
+        if (!empty($data['bundle_products'])) {
+            $firstId = $data['bundle_products'][0]['product_id'];
+
+            $thumbnail = Product::where('id', $firstId)->value('image_url');
+
+            if (!$thumbnail) {
+                $thumbnail = ProductImage::where('product_id', $firstId)
+                    ->orderBy('id')
+                    ->value('image_url');
+            }
+        }
+
+        return $thumbnail;
+    }
 }
