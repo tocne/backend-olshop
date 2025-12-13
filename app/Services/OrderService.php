@@ -193,22 +193,74 @@ class OrderService
     /* ============================================
      | PILSUK ORDER
      |============================================ */
-    public function createPilsukOrder($user, array $data)
-    {
-        return DB::transaction(function () use ($user, $data) {
+public function createPilsukOrder($user, array $data)
+{
+    return DB::transaction(function () use ($user, $data) {
 
-            $order = $this->createBaseOrder($user, $data, 'pilsuk');
+        // 1. CREATE ORDER
+        $order = Order::create([
+            'user_id' => $user?->id,
+            'order_code' => $this->generateOrderCode(),
+            'order_type' => 'pilsuk',
+            'status' => 'pending',
 
-            $subtotal = $this->insertOrderItems($order, $data['items']);
+            'customer_name' => $data['customer_name'],
+            'customer_phone' => $data['customer_phone'],
+            'address' => $data['address'],
+            'notes' => $data['notes'] ?? null,
 
-            $order->update([
-                'subtotal' => $subtotal,
-                'total' => $subtotal + ($data['shipping_cost'] ?? 0),
+            'subtotal' => 0,
+            'total' => 0,
+        ]);
+
+        $subtotal = 0;
+
+        // 2. LOOP ITEMS (SAMA DENGAN ORDER NORMAL)
+        foreach ($data['items'] as $item) {
+
+            $product = Product::findOrFail($item['product_id']);
+
+            $variant = $product->sizes()
+                ->where('id', $item['product_size_id'])
+                ->firstOrFail();
+
+            // CEK & KURANGI STOK
+            if ($product->stock_type === 'ready') {
+                if ($variant->stock < $item['quantity']) {
+                    throw new \Exception(
+                        "Stok ukuran {$variant->size} untuk {$product->name} tidak mencukupi"
+                    );
+                }
+
+                $variant->decrement('stock', $item['quantity']);
+            }
+
+            $lineTotal = $item['price'] * $item['quantity'];
+
+            // SNAPSHOT ITEM
+            $order->items()->create([
+                'product_id' => $product->id,
+                'product_name' => $product->name,
+                'size' => $variant->size,
+                'quantity' => $item['quantity'],
+                'price' => $item['price'],
+                'total_price' => $lineTotal,
+                'stock_type' => $product->stock_type,
             ]);
 
-            return $order;
-        });
-    }
+            $subtotal += $lineTotal;
+        }
+
+        // 3. UPDATE TOTAL
+        $order->update([
+            'subtotal' => $subtotal,
+            'total' => $subtotal,
+        ]);
+
+        return $order;
+    });
+}
+
 
     /* ============================================
      | SERI ORDER

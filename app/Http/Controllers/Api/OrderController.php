@@ -106,30 +106,62 @@ public function checkout(Request $request, OrderService $orderService)
 }
 
     protected function handleStore(Request $request)
-    {
-        $user = $request->user();
-        $mode = strtolower($request->order_mode);
+{
+    $user = $request->user();
+    $mode = strtolower($request->input('order_mode'));
 
-        // memastikan shipping_cost selalu ada
-        $data = $request->all();
-        $data['shipping_cost'] = $data['shipping_cost'] ?? 0;
-
-        return match ($mode) {
-            'ready' => new OrderResource(
-                $this->orderService->createReadyOrder($user, $data)->load('items')
-            ),
-
-            'pilsuk' => new OrderResource(
-                $this->orderService->createPilsukOrder($user, $data)->load('items')
-            ),
-
-            'seri' => new OrderResource(
-                $this->orderService->createSeriOrder($user, $data)->load('items')
-            ),
-
-            default => ApiResponse::error("Mode order tidak dikenal: {$mode}", 400),
-        };
+    if (! in_array($mode, ['ready', 'pilsuk', 'seri'])) {
+        return ApiResponse::error("Mode order tidak dikenal", 400);
     }
+
+    // data dasar (shared)
+    $baseData = $request->only([
+        'customer_name',
+        'customer_phone',
+        'address',
+        'notes',
+        'shipping_cost',
+    ]);
+
+    $baseData['shipping_cost'] = $baseData['shipping_cost'] ?? 0;
+
+    return match ($mode) {
+
+        // ================= READY =================
+        'ready' => new OrderResource(
+            $this->orderService
+                ->createReadyOrder($user, array_merge(
+                    $baseData,
+                    ['items' => $request->input('items')]
+                ))
+                ->load('items')
+        ),
+
+        // ================= PILSUK =================
+        'pilsuk' => new OrderResource(
+            $this->orderService
+                ->createPilsukOrder($user, array_merge(
+                    $baseData,
+                    ['items' => $request->input('items')]
+                ))
+                ->load('items')
+        ),
+
+        // ================= SERI =================
+        'seri' => new OrderResource(
+            $this->orderService
+                ->createSeriOrder($user, array_merge(
+                    $baseData,
+                    [
+                        'series_id' => $request->input('series_id'),
+                        'quantity' => $request->input('quantity'),
+                    ]
+                ))
+                ->load('items')
+        ),
+    };
+}
+
 
     /**
      * @OA\Post(
