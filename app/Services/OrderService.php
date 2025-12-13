@@ -17,7 +17,7 @@ class OrderService
         $last = Order::orderBy('id', 'desc')->first();
         $next = str_pad(($last->id ?? 0) + 1, 4, '0', STR_PAD_LEFT);
 
-        return 'ORD-'.date('Ymd').'-'.$next;
+        return 'INV-' . date('Ymd') . '-' . $next;
     }
 
     /* ============================================
@@ -125,19 +125,71 @@ class OrderService
     {
         return DB::transaction(function () use ($user, $data) {
 
-            $order = $this->createBaseOrder($user, $data, 'normal');
+            // 1. CREATE ORDER
+            $order = Order::create([
+                'user_id' => $user?->id,
+                'order_code' => $this->generateOrderCode(),
+                'order_type' => 'normal',
+                'status' => 'pending',
 
-            $subtotal = $this->insertOrderItems($order, $data['items']);
+                'customer_name' => $data['customer_name'],
+                'customer_phone' => $data['customer_phone'],
+                'address' => $data['address'],
+                'notes' => $data['notes'] ?? null,
 
+                'subtotal' => 0,
+                'total' => 0,
+            ]);
+
+            $subtotal = 0;
+
+            // 2. LOOP ITEMS
+            foreach ($data['items'] as $item) {
+
+                $product = Product::findOrFail($item['product_id']);
+
+                // === VARIANT SIZE (KUNCI SISTEM) ===
+                $variant = $product->sizes()
+                    ->where('id', $item['product_size_id'])
+                    ->firstOrFail();
+
+                // === CEK & KURANGI STOK ===
+                if ($product->stock_type === 'ready') {
+                    if ($variant->stock < $item['quantity']) {
+                        throw new \Exception(
+                            "Stok ukuran {$variant->size} untuk {$product->name} tidak mencukupi"
+                        );
+                    }
+
+                    $variant->decrement('stock', $item['quantity']);
+                }
+
+                // === HITUNG ===
+                $lineTotal = $item['price'] * $item['quantity'];
+
+                // === SIMPAN SNAPSHOT ===
+                $order->items()->create([
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'size' => $variant->size,
+                    'quantity' => $item['quantity'],
+                    'price' => $item['price'],
+                    'total_price' => $lineTotal,
+                    'stock_type' => $product->stock_type,
+                ]);
+
+                $subtotal += $lineTotal;
+            }
+
+            // 3. UPDATE TOTAL
             $order->update([
                 'subtotal' => $subtotal,
-                'total' => $subtotal + ($data['shipping_cost'] ?? 0),
+                'total' => $subtotal,
             ]);
 
             return $order;
         });
     }
-
     /* ============================================
      | PILSUK ORDER
      |============================================ */
