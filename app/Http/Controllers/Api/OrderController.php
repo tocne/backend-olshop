@@ -185,7 +185,7 @@ public function checkout(Request $request, OrderService $orderService)
      *     @OA\Response(response=500, description="Internal Server Error")
      * )
      */
-    public function create(Request $request)
+    public function store(Request $request)
     {
         return $this->handleStore($request);
     }

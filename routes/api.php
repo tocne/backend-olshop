@@ -22,6 +22,7 @@ Route::post('/orders', [OrderController::class, 'create']);
 Route::get('/orders/{id}', [OrderController::class, 'show']);
 Route::post('/orders/checkout', [OrderController::class, 'checkout']);
 Route::get('/orders/code/{order_code}', [OrderController::class, 'showByCode']);
+Route::post('/orders', [OrderController::class, 'store']);
 Route::get('/admin/orders', [OrderController::class, 'adminIndex']);
 Route::post('/products/add-size-stock', [ProductController::class, 'addSizeStock']);
 Route::delete('/products/{id}', [ProductController::class, 'destroy']);
