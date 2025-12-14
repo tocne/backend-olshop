@@ -260,107 +260,84 @@ class OrderService
      | SERI ORDER
      |============================================ */
     public function createSeriOrder($user, array $data)
-    {
-        return DB::transaction(function () use ($user, $data) {
+{
+    return DB::transaction(function () use ($user, $data) {
 
-            // 1. LOAD SERIES + RELASI
-            $series = Series::with([
-                'items.productSize.product',
-                'products',
-            ])->lockForUpdate()->findOrFail($data['series_id']);
+        $series = Series::with(['items', 'product.sizes'])
+            ->lockForUpdate()
+            ->findOrFail($data['series_id']);
 
-            $qtyOrder = max(1, (int) $data['quantity']);
+        $qtySeries = (int) ($data['quantity'] ?? 1);
 
-            // 2. CREATE ORDER
-            $order = Order::create([
-                'user_id' => $user?->id,
-                'order_code' => $this->generateOrderCode(),
-                'order_type' => 'seri',
-                'status' => 'pending',
+        if ($qtySeries < 1) {
+            throw new \Exception('Quantity series tidak valid');
+        }
 
-                'customer_name' => $data['customer_name'],
-                'customer_phone' => $data['customer_phone'],
-                'address' => $data['address'],
-                'notes' => $data['notes'] ?? null,
+        // 1. CREATE ORDER
+        $order = Order::create([
+            'user_id'        => $user?->id,
+            'order_code'     => $this->generateOrderCode(),
+            'order_type'     => 'seri',
+            'status'         => 'pending',
 
-                'subtotal' => 0,
-                'total' => 0,
-            ]);
+            'customer_name'  => $data['customer_name'],
+            'customer_phone' => $data['customer_phone'],
+            'address'        => $data['address'],
+            'notes'          => $data['notes'] ?? null,
 
-            $subtotal = 0;
+            'subtotal'       => 0,
+            'total'          => 0,
+        ]);
 
-            /*
-            | =====================================================
-            | MODEL A: SERIES ITEMS (SIZE-BASED)
-            | =====================================================
-            */
-            foreach ($series->items as $item) {
+        // 2. CEK & KUNCI STOK PER SIZE
+        foreach ($series->items as $item) {
 
-                $variant = $item->productSize()
-                    ->lockForUpdate()
-                    ->first();
+            $needQty = $item->quantity * $qtySeries;
 
-                $needQty = $item->quantity * $qtyOrder;
+            $variant = $series->product
+                ->sizes()
+                ->where('size', $item->size)
+                ->lockForUpdate()
+                ->first();
 
-                if ($variant->stock < $needQty) {
-                    throw new \Exception(
-                        "Stok {$variant->product->name} ukuran {$variant->size} tidak mencukupi"
-                    );
-                }
-
-                $variant->decrement('stock', $needQty);
-
-                $order->items()->create([
-                    'series_id' => $series->id,
-                    'product_id' => $variant->product_id,
-                    'product_name' => $variant->product->name,
-                    'size' => $variant->size,
-                    'quantity' => $needQty,
-                    'price' => 0, // snapshot bundle
-                    'total_price' => 0,
-                    'stock_type' => 'ready',
-                ]);
+            if (! $variant) {
+                throw new \Exception(
+                    "Ukuran {$item->size} tidak tersedia untuk produk {$series->product->name}"
+                );
             }
 
-            /*
-            | =====================================================
-            | MODEL B: SERIES PRODUCTS (BUNDLE PRODUCT)
-            | =====================================================
-            */
-            foreach ($series->products as $p) {
-
-                $needQty = $p->pivot->quantity * $qtyOrder;
-
-                $product = Product::lockForUpdate()->find($p->id);
-
-                if ($product->stock < $needQty) {
-                    throw new \Exception(
-                        "Stok {$product->name} tidak mencukupi"
-                    );
-                }
-
-                $product->decrement('stock', $needQty);
-
-                $order->items()->create([
-                    'series_id' => $series->id,
-                    'product_id' => $product->id,
-                    'product_name' => $product->name,
-                    'quantity' => $needQty,
-                    'price' => 0,
-                    'total_price' => 0,
-                    'stock_type' => 'ready',
-                ]);
+            if ($variant->stock < $needQty) {
+                throw new \Exception(
+                    "Stok ukuran {$item->size} tidak mencukupi (butuh {$needQty}, tersedia {$variant->stock})"
+                );
             }
 
-            // 3. TOTAL DIAMBIL DARI SERIES PRICE
-            $subtotal = $series->price * $qtyOrder;
+            // Kurangi stok
+            $variant->decrement('stock', $needQty);
 
-            $order->update([
-                'subtotal' => $subtotal,
-                'total' => $subtotal,
+            // Snapshot order item
+            $order->items()->create([
+                'series_id'    => $series->id,
+                'product_id'   => $series->product_id,
+                'product_name' => $series->name,
+                'size'         => $item->size,
+                'quantity'     => $needQty,
+                'price'        => $series->price,
+                'total_price'  => $series->price * $qtySeries,
+                'stock_type'   => 'ready',
             ]);
+        }
 
-            return $order;
-        });
-    }
+        // 3. HITUNG TOTAL (harga paket × qty)
+        $subtotal = $series->price * $qtySeries;
+
+        $order->update([
+            'subtotal' => $subtotal,
+            'total'    => $subtotal,
+        ]);
+
+        return $order->load('items');
+    });
+}
+
 }
