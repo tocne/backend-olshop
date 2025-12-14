@@ -6,7 +6,6 @@ use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
-use App\Models\Product;
 use App\Services\OrderService;
 use Illuminate\Http\Request;
 
@@ -73,95 +72,102 @@ class OrderController extends Controller
         }
     }
 
-public function checkout(Request $request, OrderService $orderService)
-{
-    $validated = $request->validate([
-        'customer_name' => 'required|string|max:255',
-        'customer_phone' => 'required|string|max:30',
-        'address' => 'required|string',
-        'notes' => 'nullable|string',
+    public function checkout(Request $request, OrderService $orderService)
+    {
+        $validated = $request->validate([
+            'customer_name' => 'required|string|max:255',
+            'customer_phone' => 'required|string|max:30',
+            'address' => 'required|string',
+            'notes' => 'nullable|string',
 
-        'items' => 'required|array|min:1',
-        'items.*.product_id' => 'required|exists:products,id',
-        'items.*.product_size_id' => 'required|exists:product_sizes,id',
-        'items.*.size' => 'required|string|max:10',
-        'items.*.quantity' => 'required|integer|min:1',
-        'items.*.price' => 'required|integer|min:0',
-    ]);
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.product_size_id' => 'required|exists:product_sizes,id',
+            'items.*.size' => 'required|string|max:10',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.price' => 'required|integer|min:0',
+        ]);
 
-    try {
-        $order = $orderService->createReadyOrder(
-            auth()->user(),
-            $validated
-        );
+        try {
+            $order = $orderService->createReadyOrder(
+                auth()->user(),
+                $validated
+            );
 
-        return ApiResponse::success(
-            ['order_code' => $order->order_code],
-            'Order berhasil dibuat'
-        );
+            return ApiResponse::success(
+                ['order_code' => $order->order_code],
+                'Order berhasil dibuat'
+            );
 
-    } catch (\Throwable $e) {
-        return ApiResponse::error($e->getMessage(), 400);
+        } catch (\Throwable $e) {
+            return ApiResponse::error($e->getMessage(), 400);
+        }
     }
-}
 
     protected function handleStore(Request $request)
-{
-    $user = $request->user();
-    $mode = strtolower($request->input('order_mode'));
+    {
+        $user = $request->user();
+        $mode = strtolower($request->input('order_mode'));
 
-    if (! in_array($mode, ['ready', 'pilsuk', 'seri'])) {
-        return ApiResponse::error("Mode order tidak dikenal", 400);
+        if (! in_array($mode, ['ready', 'pilsuk', 'seri'])) {
+            return ApiResponse::error('Mode order tidak dikenal', 400);
+        }
+
+        if ($mode !== 'seri' && ! $request->has('items')) {
+            return ApiResponse::error('Items wajib diisi', 422);
+        }
+
+        if ($mode === 'seri' && ! $request->has('series_id')) {
+            return ApiResponse::error('Series wajib dipilih', 422);
+        }
+
+        // data dasar (shared)
+        $baseData = $request->only([
+            'customer_name',
+            'customer_phone',
+            'address',
+            'notes',
+            'shipping_cost',
+        ]);
+
+        $baseData['shipping_cost'] = $baseData['shipping_cost'] ?? 0;
+
+        return match ($mode) {
+
+            // ================= READY =================
+            'ready' => new OrderResource(
+                $this->orderService
+                    ->createReadyOrder($user, array_merge(
+                        $baseData,
+                        ['items' => $request->input('items')]
+                    ))
+                    ->load('items')
+            ),
+
+            // ================= PILSUK =================
+            'pilsuk' => new OrderResource(
+                $this->orderService
+                    ->createPilsukOrder($user, array_merge(
+                        $baseData,
+                        ['items' => $request->input('items')]
+                    ))
+                    ->load('items')
+            ),
+
+            // ================= SERI =================
+            'seri' => new OrderResource(
+                $this->orderService
+                    ->createSeriOrder($user, array_merge(
+                        $baseData,
+                        [
+                            'series_id' => $request->input('series_id'),
+                            'quantity' => $request->input('quantity'),
+                        ]
+                    ))
+                    ->load('items')
+            ),
+        };
     }
-
-    // data dasar (shared)
-    $baseData = $request->only([
-        'customer_name',
-        'customer_phone',
-        'address',
-        'notes',
-        'shipping_cost',
-    ]);
-
-    $baseData['shipping_cost'] = $baseData['shipping_cost'] ?? 0;
-
-    return match ($mode) {
-
-        // ================= READY =================
-        'ready' => new OrderResource(
-            $this->orderService
-                ->createReadyOrder($user, array_merge(
-                    $baseData,
-                    ['items' => $request->input('items')]
-                ))
-                ->load('items')
-        ),
-
-        // ================= PILSUK =================
-        'pilsuk' => new OrderResource(
-            $this->orderService
-                ->createPilsukOrder($user, array_merge(
-                    $baseData,
-                    ['items' => $request->input('items')]
-                ))
-                ->load('items')
-        ),
-
-        // ================= SERI =================
-        'seri' => new OrderResource(
-            $this->orderService
-                ->createSeriOrder($user, array_merge(
-                    $baseData,
-                    [
-                        'series_id' => $request->input('series_id'),
-                        'quantity' => $request->input('quantity'),
-                    ]
-                ))
-                ->load('items')
-        ),
-    };
-}
-
 
     /**
      * @OA\Post(

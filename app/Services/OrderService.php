@@ -17,7 +17,7 @@ class OrderService
         $last = Order::orderBy('id', 'desc')->first();
         $next = str_pad(($last->id ?? 0) + 1, 4, '0', STR_PAD_LEFT);
 
-        return 'INV-' . date('Ymd') . '-' . $next;
+        return 'INV-'.date('Ymd').'-'.$next;
     }
 
     /* ============================================
@@ -143,17 +143,16 @@ class OrderService
 
             $subtotal = 0;
 
-            // 2. LOOP ITEMS
             foreach ($data['items'] as $item) {
 
                 $product = Product::findOrFail($item['product_id']);
 
-                // === VARIANT SIZE (KUNCI SISTEM) ===
+                // 🔒 LOCK VARIANT ROW
                 $variant = $product->sizes()
                     ->where('id', $item['product_size_id'])
+                    ->lockForUpdate()
                     ->firstOrFail();
 
-                // === CEK & KURANGI STOK ===
                 if ($product->stock_type === 'ready') {
                     if ($variant->stock < $item['quantity']) {
                         throw new \Exception(
@@ -161,13 +160,12 @@ class OrderService
                         );
                     }
 
+                    // aman karena row terkunci
                     $variant->decrement('stock', $item['quantity']);
                 }
 
-                // === HITUNG ===
                 $lineTotal = $item['price'] * $item['quantity'];
 
-                // === SIMPAN SNAPSHOT ===
                 $order->items()->create([
                     'product_id' => $product->id,
                     'product_name' => $product->name,
@@ -181,7 +179,6 @@ class OrderService
                 $subtotal += $lineTotal;
             }
 
-            // 3. UPDATE TOTAL
             $order->update([
                 'subtotal' => $subtotal,
                 'total' => $subtotal,
@@ -190,77 +187,74 @@ class OrderService
             return $order;
         });
     }
+
     /* ============================================
      | PILSUK ORDER
      |============================================ */
-public function createPilsukOrder($user, array $data)
-{
-    return DB::transaction(function () use ($user, $data) {
+    public function createPilsukOrder($user, array $data)
+    {
+        return DB::transaction(function () use ($user, $data) {
 
-        // 1. CREATE ORDER
-        $order = Order::create([
-            'user_id' => $user?->id,
-            'order_code' => $this->generateOrderCode(),
-            'order_type' => 'pilsuk',
-            'status' => 'pending',
+            $order = Order::create([
+                'user_id' => $user?->id,
+                'order_code' => $this->generateOrderCode(),
+                'order_type' => 'pilsuk',
+                'status' => 'pending',
 
-            'customer_name' => $data['customer_name'],
-            'customer_phone' => $data['customer_phone'],
-            'address' => $data['address'],
-            'notes' => $data['notes'] ?? null,
+                'customer_name' => $data['customer_name'],
+                'customer_phone' => $data['customer_phone'],
+                'address' => $data['address'],
+                'notes' => $data['notes'] ?? null,
 
-            'subtotal' => 0,
-            'total' => 0,
-        ]);
-
-        $subtotal = 0;
-
-        // 2. LOOP ITEMS (SAMA DENGAN ORDER NORMAL)
-        foreach ($data['items'] as $item) {
-
-            $product = Product::findOrFail($item['product_id']);
-
-            $variant = $product->sizes()
-                ->where('id', $item['product_size_id'])
-                ->firstOrFail();
-
-            // CEK & KURANGI STOK
-            if ($product->stock_type === 'ready') {
-                if ($variant->stock < $item['quantity']) {
-                    throw new \Exception(
-                        "Stok ukuran {$variant->size} untuk {$product->name} tidak mencukupi"
-                    );
-                }
-
-                $variant->decrement('stock', $item['quantity']);
-            }
-
-            $lineTotal = $item['price'] * $item['quantity'];
-
-            // SNAPSHOT ITEM
-            $order->items()->create([
-                'product_id' => $product->id,
-                'product_name' => $product->name,
-                'size' => $variant->size,
-                'quantity' => $item['quantity'],
-                'price' => $item['price'],
-                'total_price' => $lineTotal,
-                'stock_type' => $product->stock_type,
+                'subtotal' => 0,
+                'total' => 0,
             ]);
 
-            $subtotal += $lineTotal;
-        }
+            $subtotal = 0;
 
-        // 3. UPDATE TOTAL
-        $order->update([
-            'subtotal' => $subtotal,
-            'total' => $subtotal,
-        ]);
+            foreach ($data['items'] as $item) {
 
-        return $order;
-    });
-}
+                $product = Product::findOrFail($item['product_id']);
 
+                // 🔒 LOCK VARIANT ROW
+                $variant = $product->sizes()
+                    ->where('id', $item['product_size_id'])
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ($product->stock_type === 'ready') {
+                    if ($variant->stock < $item['quantity']) {
+                        throw new \Exception(
+                            "Stok ukuran {$variant->size} untuk {$product->name} tidak mencukupi"
+                        );
+                    }
+
+                    $variant->decrement('stock', $item['quantity']);
+                }
+
+                $lineTotal = $item['price'] * $item['quantity'];
+
+                $order->items()->create([
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'size' => $variant->size,
+                    'quantity' => $item['quantity'],
+                    'price' => $item['price'],
+                    'total_price' => $lineTotal,
+                    'stock_type' => $product->stock_type,
+                ]);
+
+                $subtotal += $lineTotal;
+            }
+
+            $order->update([
+                'subtotal' => $subtotal,
+                'total' => $subtotal,
+            ]);
+
+            return $order;
+        });
+    }
 
     /* ============================================
      | SERI ORDER
@@ -269,20 +263,101 @@ public function createPilsukOrder($user, array $data)
     {
         return DB::transaction(function () use ($user, $data) {
 
-            $series = Series::with(['items', 'products', 'product'])->findOrFail($data['series_id']);
+            // 1. LOAD SERIES + RELASI
+            $series = Series::with([
+                'items.productSize.product',
+                'products',
+            ])->lockForUpdate()->findOrFail($data['series_id']);
 
-            $product = $series->product;
-            if (! $series) {
-                throw new \Exception('Produk ini tidak memiliki seri.');
+            $qtyOrder = max(1, (int) $data['quantity']);
+
+            // 2. CREATE ORDER
+            $order = Order::create([
+                'user_id' => $user?->id,
+                'order_code' => $this->generateOrderCode(),
+                'order_type' => 'seri',
+                'status' => 'pending',
+
+                'customer_name' => $data['customer_name'],
+                'customer_phone' => $data['customer_phone'],
+                'address' => $data['address'],
+                'notes' => $data['notes'] ?? null,
+
+                'subtotal' => 0,
+                'total' => 0,
+            ]);
+
+            $subtotal = 0;
+
+            /*
+            | =====================================================
+            | MODEL A: SERIES ITEMS (SIZE-BASED)
+            | =====================================================
+            */
+            foreach ($series->items as $item) {
+
+                $variant = $item->productSize()
+                    ->lockForUpdate()
+                    ->first();
+
+                $needQty = $item->quantity * $qtyOrder;
+
+                if ($variant->stock < $needQty) {
+                    throw new \Exception(
+                        "Stok {$variant->product->name} ukuran {$variant->size} tidak mencukupi"
+                    );
+                }
+
+                $variant->decrement('stock', $needQty);
+
+                $order->items()->create([
+                    'series_id' => $series->id,
+                    'product_id' => $variant->product_id,
+                    'product_name' => $variant->product->name,
+                    'size' => $variant->size,
+                    'quantity' => $needQty,
+                    'price' => 0, // snapshot bundle
+                    'total_price' => 0,
+                    'stock_type' => 'ready',
+                ]);
             }
 
-            $order = $this->createBaseOrder($user, $data, 'seri');
+            /*
+            | =====================================================
+            | MODEL B: SERIES PRODUCTS (BUNDLE PRODUCT)
+            | =====================================================
+            */
+            foreach ($series->products as $p) {
 
-            $subtotal = $this->insertSeriesSnapshot($order, $series, $data['quantity']);
-            $subtotal = $series->price * $data['quantity'];
+                $needQty = $p->pivot->quantity * $qtyOrder;
+
+                $product = Product::lockForUpdate()->find($p->id);
+
+                if ($product->stock < $needQty) {
+                    throw new \Exception(
+                        "Stok {$product->name} tidak mencukupi"
+                    );
+                }
+
+                $product->decrement('stock', $needQty);
+
+                $order->items()->create([
+                    'series_id' => $series->id,
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'quantity' => $needQty,
+                    'price' => 0,
+                    'total_price' => 0,
+                    'stock_type' => 'ready',
+                ]);
+            }
+
+            // 3. TOTAL DIAMBIL DARI SERIES PRICE
+            $subtotal = $series->price * $qtyOrder;
+
             $order->update([
                 'subtotal' => $subtotal,
-                'total' => $subtotal + ($data['shipping_cost'] ?? 0),
+                'total' => $subtotal,
             ]);
 
             return $order;
