@@ -86,6 +86,7 @@ Route::delete('/product-sizes/{id}', [ProductSizeController::class, 'destroy']);
 | SERIES
 |--------------------------------------------------------------------------
 */
+Route::get('/series/by-product/{productId}', [SeriesController::class, 'byProduct']);
 Route::delete('/series/{id}', [SeriesController::class, 'destroy']);
 Route::delete('/series', [SeriesController::class, 'destroyAll']);
 

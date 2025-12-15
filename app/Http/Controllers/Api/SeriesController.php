@@ -44,6 +44,24 @@ class SeriesController extends Controller
             return ApiResponse::error($e->getMessage(), 500);
         }
     }
+public function byProduct($productId)
+{
+    $series = Series::with('items.product')
+        ->where('product_id', $productId)
+        ->first();
+
+    if (! $series) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Series not found'
+        ], 404);
+    }
+
+    return response()->json([
+        'success' => true,
+        'data' => $series
+    ]);
+}
 
     // ==========================================================
     // CREATE SERIES
