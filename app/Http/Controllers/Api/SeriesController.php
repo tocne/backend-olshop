@@ -19,7 +19,11 @@ class SeriesController extends Controller
     public function index()
     {
         try {
-            $series = Series::with(['product', 'items', 'products'])->get();
+                    $series = Series::with([
+            'product',
+            'items.product',
+            'products'
+        ])->get();
 
             return ApiResponse::success($series, 'Series list retrieved');
         } catch (\Throwable $e) {
@@ -33,7 +37,7 @@ class SeriesController extends Controller
     public function show($id)
     {
         try {
-            $series = Series::with(['product', 'items', 'products'])->find($id);
+            $series = Series::with(['product', 'items.product', 'products'])->find($id);
 
             if (! $series) {
                 return ApiResponse::error('Series not found', 404);
@@ -44,6 +48,7 @@ class SeriesController extends Controller
             return ApiResponse::error($e->getMessage(), 500);
         }
     }
+
 public function byProduct($productId)
 {
     $series = Series::with('items.product')
