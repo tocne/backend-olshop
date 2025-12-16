@@ -121,6 +121,18 @@ class OrderController extends Controller
             return ApiResponse::error('Series wajib dipilih', 422);
         }
 
+        if ($mode === 'seri') {
+            $request->validate([
+                'series_id' => 'required|integer|exists:series,id',
+                'quantity' => 'nullable|integer|min:1',
+                'customer_name' => 'required|string',
+                'customer_phone' => 'required|string',
+                'address' => 'required|string',
+                'notes' => 'nullable|string',
+                'shipping_cost' => 'nullable|numeric|min:0',
+            ]);
+        }
+
         // data dasar (shared)
         $baseData = $request->only([
             'customer_name',
