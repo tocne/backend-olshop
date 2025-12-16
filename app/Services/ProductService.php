@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Models\Product;
 use Illuminate\Support\Str;
-use App\Helpers\SupabaseUploader;
+use App\Services\SupabaseUploader;
 
 class ProductService
 {
