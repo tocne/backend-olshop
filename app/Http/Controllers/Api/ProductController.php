@@ -9,6 +9,7 @@ use App\Models\ProductSize;
 use App\Services\SupabaseUploader;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use App\Services\ProductService;
 
 class ProductController extends Controller
 {
@@ -80,122 +81,46 @@ class ProductController extends Controller
      *    @OA\Response(response=201, description="Product created")
      * )
      */
-    public function store(Request $request)
-    {
-        try {
+    public function store(Request $request, ProductService $productService)
+{
+    try {
 
-            $validated = $request->validate([
-                'name' => 'required|string|max:255',
-                'description' => 'nullable|string',
-                'price' => 'required|numeric',
-                'category_id' => 'required|exists:categories,id',
-                'category_prefix' => 'required|string|max:3',
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'price' => 'required|numeric',
+            'category_id' => 'required|exists:categories,id',
+            'category_prefix' => 'required|string|max:3',
 
-                // MULTI COLORS
-                'colors' => 'nullable|array',
-                'colors.*' => 'string|max:50',
+            'colors' => 'nullable|array',
+            'colors.*' => 'string|max:50',
 
-                // STOCK TYPE
-                'stock_type' => 'required|in:ready,po',
-                'po_estimate_days' => 'required_if:stock_type,po|nullable|integer|min:1',
-                'po_notes' => 'nullable|string',
+            'stock_type' => 'required|in:ready,po',
+            'po_estimate_days' => 'required_if:stock_type,po|nullable|integer|min:1',
+            'po_notes' => 'nullable|string',
 
-                // SIZE ONLY IF READY
-                'sizes' => 'required_if:stock_type,ready|array',
-                'sizes.*.size' => 'required_if:stock_type,ready|string|max:20',
-                'sizes.*.stock' => 'required_if:stock_type,ready|integer|min:0',
+            'sizes' => 'required_if:stock_type,ready|array',
+            'sizes.*.size' => 'required_if:stock_type,ready|string|max:20',
+            'sizes.*.stock' => 'required_if:stock_type,ready|integer|min:0',
 
-                'image' => 'nullable|image|max:2048',
-            ]);
+            'image' => 'nullable|image|max:2048',
+        ]);
 
-            // Upload image
-            $image_url = null;
-            if ($request->hasFile('image')) {
-                $image_url = SupabaseUploader::upload($request->file('image'), 'products');
-            }
+        $product = $productService->create(
+            $validated,
+            $request->file('image'),
+            $request->file('images') ?? []
+        );
 
-            // Generate SKU
-            $prefix = strtoupper($validated['category_prefix']);
-            $last = Product::where('product_code', 'like', $prefix.'%')
-                ->orderBy('product_code', 'desc')
-                ->first();
+        return ApiResponse::success(
+            $product->load(['sizes', 'colors']),
+            'Product created successfully'
+        );
 
-            $newNumber = $last
-                ? str_pad(intval(substr($last->product_code, strlen($prefix))) + 1, 3, '0', STR_PAD_LEFT)
-                : '001';
-
-            $skuBase = $prefix.$newNumber;
-
-            // Total stock (READY only)
-            $totalStock = ($validated['stock_type'] === 'ready')
-                ? array_sum(array_column($validated['sizes'], 'stock'))
-                : 0;
-            $validated['slug'] = Str::slug($validated['name']);
-            // Create product
-            $product = Product::create([
-                'name' => $validated['name'],
-                'slug' => $validated['slug'],
-                'description' => $validated['description'],
-                'price' => $validated['price'],
-                'category_id' => $validated['category_id'],
-
-                'stock' => $totalStock,
-                'product_code' => $skuBase,
-
-                'stock_type' => $validated['stock_type'],
-                'po_estimate_days' => $validated['stock_type'] === 'po'
-                    ? ($validated['po_estimate_days'] ?? null)
-                    : null,
-                'po_notes' => $validated['stock_type'] === 'po'
-                    ? ($validated['po_notes'] ?? null)
-                    : null,
-
-                'image_url' => $image_url,
-            ]);
-
-            // MULTIPLE IMAGES WITH ORDER
-            if ($request->hasFile('images')) {
-
-                foreach ($request->file('images') as $index => $file) {
-
-                    $url = SupabaseUploader::upload($file, 'products');
-
-                    $product->images()->create([
-                        'image_url' => $url,
-                        'order' => $index,
-                    ]);
-                }
-            }
-
-            // Insert sizes (READY only)
-            if ($validated['stock_type'] === 'ready') {
-                foreach ($validated['sizes'] as $s) {
-                    $product->sizes()->create([
-                        'size' => strtoupper($s['size']),
-                        'stock' => $s['stock'],
-                        'barcode' => $skuBase.'-'.strtoupper($s['size']),
-                    ]);
-                }
-            }
-
-            // Insert Colors (optional)
-            if (! empty($validated['colors'])) {
-                foreach ($validated['colors'] as $color) {
-                    $product->colors()->create([
-                        'color_name' => ucfirst(strtolower($color)),
-                    ]);
-                }
-            }
-
-            return ApiResponse::success(
-                $product->load(['sizes', 'colors']),
-                'Product created successfully'
-            );
-
-        } catch (\Throwable $e) {
-            return ApiResponse::error($e->getMessage(), 500);
-        }
+    } catch (\Throwable $e) {
+        return ApiResponse::error($e->getMessage(), 500);
     }
+}
 
     /**
      * @OA\Get(
