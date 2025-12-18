@@ -90,7 +90,6 @@ class ProductController extends Controller
             'description' => 'nullable|string',
             'price' => 'required|numeric',
             'category_id' => 'required|exists:categories,id',
-            'category_prefix' => 'required|string|max:3',
 
             'colors' => 'nullable|array',
             'colors.*' => 'string|max:50',

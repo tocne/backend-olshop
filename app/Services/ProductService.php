@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Product;
+use App\Models\Category;
 use Illuminate\Support\Str;
 use App\Services\SupabaseUploader;
 
@@ -10,14 +11,11 @@ class ProductService
 {
     public function create(array $validated, $image = null, array $images = [])
     {
-        // Upload main image
-        $image_url = null;
-        if ($image) {
-            $image_url = SupabaseUploader::upload($image, 'products');
-        }
+        // === AMBIL PREFIX DARI CATEGORY ===
+        $category = Category::findOrFail($validated['category_id']);
+        $prefix = strtoupper($category->prefix);
 
-        // Generate SKU
-        $prefix = strtoupper($validated['category_prefix']);
+        // === GENERATE SKU ===
         $last = Product::where('product_code', 'like', $prefix.'%')
             ->orderBy('product_code', 'desc')
             ->first();
@@ -33,16 +31,21 @@ class ProductService
 
         $skuBase = $prefix.$newNumber;
 
-        // Total stock (READY only)
+        // === HITUNG STOCK ===
         $totalStock = ($validated['stock_type'] === 'ready')
             ? array_sum(array_column($validated['sizes'], 'stock'))
             : 0;
 
-        // Create product
+        // === UPLOAD IMAGE ===
+        $image_url = $image
+            ? SupabaseUploader::upload($image, 'products')
+            : null;
+
+        // === CREATE PRODUCT ===
         $product = Product::create([
             'name' => $validated['name'],
             'slug' => Str::slug($validated['name']),
-            'description' => $validated['description'],
+            'description' => $validated['description'] ?? null,
             'price' => $validated['price'],
             'category_id' => $validated['category_id'],
             'stock' => $totalStock,
@@ -57,17 +60,16 @@ class ProductService
             'image_url' => $image_url,
         ]);
 
-        // Multiple images
+        // === MULTI IMAGES ===
         foreach ($images as $index => $file) {
             $url = SupabaseUploader::upload($file, 'products');
-
             $product->images()->create([
                 'image_url' => $url,
                 'order' => $index,
             ]);
         }
 
-        // Insert sizes (READY only)
+        // === SIZES ===
         if ($validated['stock_type'] === 'ready') {
             foreach ($validated['sizes'] as $s) {
                 $product->sizes()->create([
@@ -78,8 +80,8 @@ class ProductService
             }
         }
 
-        // Insert colors
-        if (! empty($validated['colors'])) {
+        // === COLORS ===
+        if (!empty($validated['colors'])) {
             foreach ($validated['colors'] as $color) {
                 $product->colors()->create([
                     'color_name' => ucfirst(strtolower($color)),
