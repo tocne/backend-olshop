@@ -56,7 +56,6 @@ class ProductImportController extends Controller
                     'description' => $data['description'],
                     'price' => $data['price'],
                     'category_id' => $data['category_id'],
-                    'category_prefix' => $data['category_prefix'],
                     'stock_type' => $data['stock_type'],
                     'po_estimate_days' => $data['po_estimate_days'] ?: null,
                     'po_notes' => $data['po_notes'] ?: null,
