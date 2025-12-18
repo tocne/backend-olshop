@@ -5,10 +5,10 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\ProductImportController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProductSizeController;
 use App\Http\Controllers\Api\SeriesController;
-use App\Http\Controllers\Api\ProductImportController;
 use App\Http\Controllers\Api\UploadController;
 
 use Illuminate\Support\Facades\Route;
@@ -37,7 +37,8 @@ Route::get('/dashboard/sales-weekly', [DashboardController::class, 'salesWeekly'
 /*|--------------------------------------------------------------------------
 | PRODUCT IMPORT
 |--------------------------------------------------------------------------*/
-Route::post('/products/import', [ProductImportController::class, 'import']);
+Route::post('/imports/products', [ProductImportController::class, 'import']);
+
 /*
 |--------------------------------------------------------------------------
 | ORDERS (CUSTOMER)
