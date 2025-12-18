@@ -34,6 +34,10 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
 Route::get('/dashboard/sales-weekly', [DashboardController::class, 'salesWeekly']);
 
+/*|--------------------------------------------------------------------------
+| PRODUCT IMPORT
+|--------------------------------------------------------------------------*/
+Route::post('/products/import', [ProductImportController::class, 'import']);
 /*
 |--------------------------------------------------------------------------
 | ORDERS (CUSTOMER)
@@ -108,7 +112,4 @@ Route::apiResource('categories', CategoryController::class);
 */
 Route::post('/upload', [UploadController::class, 'store']);
 
-/*|--------------------------------------------------------------------------
-| PRODUCT IMPORT
-|--------------------------------------------------------------------------*/
-Route::post('/products/import', [ProductImportController::class, 'import']);
+
