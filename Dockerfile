@@ -1,5 +1,5 @@
-# Base PHP 8.2 CLI
-FROM php:8.2-cli
+# Base PHP 8.3 CLI
+FROM php:8.3-cli
 
 # Install dependencies
 RUN apt-get update && apt-get install -y \
@@ -30,10 +30,8 @@ COPY . .
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Expose port (optional, Railway pakai $PORT)
 EXPOSE 8000
 
-# Start Laravel at runtime
 CMD php artisan config:clear \
     && php artisan migrate --force || true \
     && php artisan serve --host 0.0.0.0 --port ${PORT}
