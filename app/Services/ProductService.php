@@ -36,10 +36,21 @@ class ProductService
             ? array_sum(array_column($validated['sizes'], 'stock'))
             : 0;
 
-        // === UPLOAD IMAGE ===
-        $image_url = $image
-            ? SupabaseUploader::upload($image, 'products')
-            : null;
+// === UPLOAD IMAGE ===
+$image_url = null;
+
+if ($image) {
+    // CASE 1: FILE upload (manual)
+    if ($image instanceof \Illuminate\Http\UploadedFile) {
+        $image_url = SupabaseUploader::upload($image, 'products');
+    }
+
+    // CASE 2: URL (import excel)
+    elseif (is_string($image)) {
+        $image_url = $image; // langsung simpan URL
+    }
+}
+
 
         // === CREATE PRODUCT ===
         $product = Product::create([
