@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Services\ProductService;
+use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class ProductImportController extends Controller
@@ -35,7 +35,7 @@ class ProductImportController extends Controller
 
                 // ===== PARSE SIZES =====
                 $sizes = [];
-                if ($data['stock_type'] === 'ready' && !empty($data['sizes'])) {
+                if ($data['stock_type'] === 'ready' && ! empty($data['sizes'])) {
                     foreach (explode('|', $data['sizes']) as $item) {
                         [$size, $stock] = explode(':', $item);
                         $sizes[] = [
@@ -46,7 +46,7 @@ class ProductImportController extends Controller
                 }
 
                 // ===== PARSE COLORS =====
-                $colors = !empty($data['colors'])
+                $colors = ! empty($data['colors'])
                     ? array_map('trim', explode('|', $data['colors']))
                     : [];
 
@@ -65,8 +65,8 @@ class ProductImportController extends Controller
 
                 // ===== IMAGE VIA URL (OPTIONAL) =====
                 $image = null;
-                if (!empty($data['image'])) {
-                    $image = file_get_contents($data['image']);
+                if (! empty($data['image'])) {
+                    $image = trim($data['image']); // SIMPAN URL SAJA
                 }
 
                 // CREATE PRODUCT (PAKAI LOGIC STORE YANG SAMA)
