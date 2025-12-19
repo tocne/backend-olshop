@@ -93,9 +93,10 @@ class CustomSeriesController extends Controller
                 // =========================
                 // UPLOAD GALLERY (OPTIONAL)
                 // =========================
-                if ($request->hasFile('images')) {
-                    foreach ($request->file('images') as $index => $image) {
+                $galleryFiles = $request->file('images');
 
+                if (is_array($galleryFiles)) {
+                    foreach ($galleryFiles as $index => $image) {
                         $imageUrl = SupabaseUploader::upload(
                             $image,
                             'series/gallery'
@@ -103,7 +104,7 @@ class CustomSeriesController extends Controller
 
                         SeriesImage::create([
                             'series_id' => $series->id,
-                            'image_url' => $imageUrl, // URL FULL
+                            'image_url' => $imageUrl,
                             'order' => $index,
                         ]);
                     }
