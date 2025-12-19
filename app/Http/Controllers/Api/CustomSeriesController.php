@@ -51,9 +51,6 @@ class CustomSeriesController extends Controller
     }
 
     public function store(Request $request)
-    // ==========================================================
-    // CREATE CUSTOM SERIES
-    // ==========================================================
     {
         try {
             // =========================
