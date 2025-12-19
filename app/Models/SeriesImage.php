@@ -14,6 +14,10 @@ class SeriesImage extends Model
 
     public function series()
     {
-        return $this->belongsTo(Series::class);
+        return $this->belongsTo
+        (\App\Models\Series::class,
+        'series_id',
+        'id'
+        );
     }
 }
