@@ -7,11 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 class Series extends Model
 {
     protected $fillable = [
-        'product_id',
         'name',
         'description',
         'price',
         'series_code',
+        'thumbnail',
+        'active'
     ];
 
     public function product()
@@ -22,6 +23,10 @@ class Series extends Model
     public function items() // Model A
     {
         return $this->hasMany(SeriesItem::class);
+    }
+        public function images()
+    {
+        return $this->hasMany(SeriesImage::class)->orderBy('order');
     }
 
     public function products() // Model B
