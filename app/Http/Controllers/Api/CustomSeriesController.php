@@ -50,20 +50,23 @@ class CustomSeriesController extends Controller
         }
     }
 
+    public function store(Request $request)
     // ==========================================================
     // CREATE CUSTOM SERIES
     // ==========================================================
-    public function store(Request $request)
     {
         try {
-            $validated = $request->validate([
+            // =========================
+            // VALIDATION (WAJIB IMAGE)
+            // =========================
+            $request->validate([
                 'name' => 'required|string|max:255',
                 'description' => 'nullable|string',
                 'price' => 'required|numeric|min:0',
 
-                'thumbnail' => 'required',
+                'thumbnail' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
                 'images' => 'nullable|array',
-                'images.*' => 'nullable',
+                'images.*' => 'image|mimes:jpg,jpeg,png,webp|max:2048',
 
                 'active' => 'nullable|boolean',
             ]);
@@ -71,19 +74,12 @@ class CustomSeriesController extends Controller
             $series = DB::transaction(function () use ($request) {
 
                 // =========================
-                // UPLOAD THUMBNAIL (SAMA DENGAN PRODUCT)
+                // UPLOAD THUMBNAIL (PASTI ADA)
                 // =========================
-                $thumbnail = $request->file('thumbnail');
-                $thumbnailUrl = null;
-
-                if ($thumbnail instanceof UploadedFile) {
-                    $thumbnailUrl = SupabaseUploader::upload(
-                        $thumbnail,
-                        'series/thumbnails'
-                    );
-                } elseif (is_string($thumbnail)) {
-                    $thumbnailUrl = $thumbnail;
-                }
+                $thumbnailUrl = SupabaseUploader::upload(
+                    $request->file('thumbnail'),
+                    'series/thumbnails'
+                );
 
                 // =========================
                 // CREATE SERIES
@@ -98,29 +94,21 @@ class CustomSeriesController extends Controller
                 ]);
 
                 // =========================
-                // UPLOAD GALLERY (SAMA DENGAN PRODUCT)
+                // UPLOAD GALLERY (OPTIONAL)
                 // =========================
-                if ($request->has('images')) {
-                    foreach ($request->images as $index => $image) {
+                if ($request->hasFile('images')) {
+                    foreach ($request->file('images') as $index => $image) {
 
-                        $imageUrl = null;
+                        $imageUrl = SupabaseUploader::upload(
+                            $image,
+                            'series/gallery'
+                        );
 
-                        if ($image instanceof UploadedFile) {
-                            $imageUrl = SupabaseUploader::upload(
-                                $image,
-                                'series/gallery'
-                            );
-                        } elseif (is_string($image)) {
-                            $imageUrl = $image;
-                        }
-
-                        if ($imageUrl) {
-                            SeriesImage::create([
-                                'series_id' => $series->id,
-                                'image_url' => $imageUrl, // URL FULL
-                                'order' => $index,
-                            ]);
-                        }
+                        SeriesImage::create([
+                            'series_id' => $series->id,
+                            'image_url' => $imageUrl, // URL FULL
+                            'order' => $index,
+                        ]);
                     }
                 }
 
