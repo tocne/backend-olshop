@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Models\Series;
 use App\Models\SeriesImage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use App\Helpers\ApiResponse;
 
 class CustomSeriesController extends Controller
 {
@@ -56,49 +56,55 @@ class CustomSeriesController extends Controller
     {
         try {
             $validated = $request->validate([
-                'name'        => 'required|string|max:255',
+                'name' => 'required|string|max:255',
                 'description' => 'nullable|string',
-                'price'       => 'required|numeric|min:0',
+                'price' => 'required|numeric|min:0',
 
-                'thumbnail'   => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
-                'images'      => 'nullable|array',
-                'images.*'    => 'image|mimes:jpg,jpeg,png,webp|max:2048',
+                'thumbnail' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
+                'images' => 'nullable|array',
+                'images.*' => 'image|mimes:jpg,jpeg,png,webp|max:2048',
 
-                'active'      => 'nullable|boolean',
+                'active' => 'nullable|boolean',
             ]);
 
-            $series = DB::transaction(function () use ($validated, $request) {
+            $series = DB::transaction(function () use ($request) {
 
                 // =========================
-                // 1. Upload thumbnail
+                // UPLOAD THUMBNAIL
                 // =========================
-                $thumbnailPath = $request->file('thumbnail')
-                    ->store('series/thumbnails', 'public');
+                $thumbnailPath = Storage::disk('supabase')
+                    ->put('series/thumbnails', $request->file('thumbnail'));
+
+                $thumbnailUrl = Storage::disk('supabase')
+                    ->url($thumbnailPath);
 
                 // =========================
-                // 2. Create series
+                // CREATE SERIES
                 // =========================
                 $series = Series::create([
-                    'name'        => $validated['name'],
-                    'slug'        => Str::slug($validated['name']),
-                    'description' => $validated['description'] ?? null,
-                    'price'       => $validated['price'],
-                    'thumbnail'   => $thumbnailPath,
-                    'series_code' => 'SER-' . strtoupper(Str::random(6)),
-                    'active'      => $validated['active'] ?? true,
+                    'name' => $request->name,
+                    'description' => $request->description,
+                    'price' => $request->price,
+                    'thumbnail' => $thumbnailUrl, // SIMPAN URL FULL
+                    'series_code' => 'SER-'.strtoupper(Str::random(6)),
+                    'active' => true,
                 ]);
 
                 // =========================
-                // 3. Upload gallery images
+                // UPLOAD GALLERY
                 // =========================
                 if ($request->hasFile('images')) {
                     foreach ($request->file('images') as $index => $image) {
-                        $path = $image->store('series/images', 'public');
+                        $path = Storage::disk('supabase')
+                            ->put('series/gallery', $image);
+
+                        $url = Storage::disk('supabase')
+                            ->url($path);
 
                         SeriesImage::create([
                             'series_id' => $series->id,
-                            'image_url' => $path,
-                            'order'     => $index,
+                            'image_url' => $url, // SIMPAN URL FULL
+                            'order' => $index,
                         ]);
                     }
                 }
