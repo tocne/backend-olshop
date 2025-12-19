@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProductSizeController;
 use App\Http\Controllers\Api\SeriesController;
 use App\Http\Controllers\Api\UploadController;
+use App\Http\Controllers\Api\CustomSeriesController;
 
 use Illuminate\Support\Facades\Route;
 
@@ -35,7 +36,14 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
 Route::get('/dashboard/sales-weekly', [DashboardController::class, 'salesWeekly']);
 Route::get('/banners', [BannerController::class, 'index']);
-
+/*|--------------------------------------------------------------------------
+| CUSTOM SERIES
+|--------------------------------------------------------------------------*/
+Route::prefix('series/custom')->group(function () {
+    Route::get('/', [CustomSeriesController::class, 'index']);
+    Route::get('/{id}', [CustomSeriesController::class, 'show']);
+    Route::post('/', [CustomSeriesController::class, 'store']);
+});
 /*|--------------------------------------------------------------------------
 | PRODUCT IMPORT
 |--------------------------------------------------------------------------*/
