@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BannerController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\OrderController;
@@ -33,6 +34,7 @@ Route::middleware('auth:sanctum')->group(function () {
 */
 Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
 Route::get('/dashboard/sales-weekly', [DashboardController::class, 'salesWeekly']);
+Route::get('/banners', [BannerController::class, 'index']);
 
 /*|--------------------------------------------------------------------------
 | PRODUCT IMPORT
