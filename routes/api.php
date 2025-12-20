@@ -64,7 +64,7 @@ Route::get('/orders/code/{order_code}', [OrderController::class, 'showByCode']);
 |--------------------------------------------------------------------------
 */
 Route::get('/admin/orders', [OrderController::class, 'adminIndex']);
-
+Route::get('/admin/orders/{id}', [OrderController::class, 'show']);
 Route::put('/admin/orders/{id}/pay', [OrderController::class, 'markAsPaid']);
 Route::put('/admin/orders/{id}/ship', [OrderController::class, 'ship']);
 Route::put('/admin/orders/{id}/complete', [OrderController::class, 'complete']);
