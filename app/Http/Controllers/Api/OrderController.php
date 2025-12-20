@@ -236,7 +236,7 @@ class OrderController extends Controller
      *     @OA\Response(response=200, description="Order shipped")
      * )
      */
-    public function ship($id)
+    public function ship(Request $request, $id)
     {
         try {
             $order = Order::findOrFail($id);
@@ -248,13 +248,16 @@ class OrderController extends Controller
                 );
             }
 
-            $order->update(['status' => 'shipped']);
+            // SET SEMUA SEKALIGUS
+            $order->status = 'shipped';
+            $order->shipped_at = now(); // ⬅️ OTOMATIS
+            $order->shipping_note = $request->shipping_note; // OPSIONAL
+            $order->save();
 
-            // Load ulang agar response lengkap
+            // Load ulang relasi
             $order->load('items.product');
 
             return ApiResponse::success($order, 'Pesanan telah dikirim.');
-
         } catch (\Throwable $th) {
             return ApiResponse::error($th->getMessage(), 500);
         }
