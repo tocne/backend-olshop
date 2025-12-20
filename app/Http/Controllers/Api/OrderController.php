@@ -46,14 +46,20 @@ class OrderController extends Controller
         }
     }
 
-    public function adminIndex()
+    public function adminIndex(Request $request)
     {
         try {
-            $orders = Order::with(['items.product'])
-                ->orderBy('id', 'desc')
-                ->get();
+            $query = Order::with('items.product');
 
-            return ApiResponse::success($orders, 'All orders retrieved');
+            // 🔥 FILTER UNTUK BULK PRINT
+            if ($request->filled('ids')) {
+                $ids = explode(',', $request->ids);
+                $query->whereIn('id', $ids);
+            }
+
+            $orders = $query->orderBy('id', 'desc')->get();
+
+            return ApiResponse::success($orders, 'Orders retrieved');
         } catch (\Throwable $th) {
             return ApiResponse::error($th->getMessage(), 500);
         }
