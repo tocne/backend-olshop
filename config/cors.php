@@ -10,6 +10,7 @@ return [
         'http://localhost:5173',
         'http://localhost:3000',
         'https://teekay.onrender.com',
+        'https://teekay-pi.vercel.app',
         '*'
      ],
 
