@@ -23,16 +23,24 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
+
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
+
+    // ORDER (USER)
+    Route::get('/orders/active', [OrderController::class, 'active']);
+    Route::get('/orders', [OrderController::class, 'index']); // kalau sudah ada
+
+    // PAYMENT
     Route::post('/payments', [PaymentController::class, 'store']);
 
-    // Admin ONLY – mark order as paid
+    // ADMIN ONLY
     Route::post(
         '/admin/orders/{id}/mark-paid',
         [OrderController::class, 'markAsPaid']
     )->middleware('role:admin');
 });
+
 
 /*
 |--------------------------------------------------------------------------
