@@ -65,6 +65,31 @@ class OrderController extends Controller
         }
     }
 
+    public function active(Request $request)
+{
+    try {
+        $user = $request->user();
+
+        if (!$user) {
+            return ApiResponse::error('Unauthorized', 401);
+        }
+
+        $order = Order::where('user_id', $user->id)
+            ->whereIn('status', [
+                'awaiting_payment',
+                'paid',
+                'shipped',
+            ])
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        return ApiResponse::success($order, 'Active order retrieved');
+    } catch (\Throwable $th) {
+        return ApiResponse::error($th->getMessage(), 500);
+    }
+}
+
+
     public function showByCode($code)
     {
         try {
