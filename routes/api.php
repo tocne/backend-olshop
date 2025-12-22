@@ -28,19 +28,25 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 
     // ORDER (USER)
-    Route::get('/orders/active', [OrderController::class, 'active']);
-    Route::get('/orders', [OrderController::class, 'index']); // kalau sudah ada
+    // Route::get('/orders/active', [OrderController::class, 'active']);
+    // Route::get('/orders', [OrderController::class, 'index']); // kalau sudah ada
 
-    // PAYMENT
-    Route::post('/payments', [PaymentController::class, 'store']);
+    // // PAYMENT
+    // Route::post('/payments', [PaymentController::class, 'store']);
 
-    // ADMIN ONLY
-    Route::post(
-        '/admin/orders/{id}/mark-paid',
-        [OrderController::class, 'markAsPaid']
-    )->middleware('role:admin');
+    // // ADMIN ONLY
+    // Route::post(
+    //     '/admin/orders/{id}/mark-paid',
+    //     [OrderController::class, 'markAsPaid']
+    // )->middleware('role:admin');
 });
 
+// 🔓 GUEST / PUBLIC
+Route::get('/orders/active', [OrderController::class, 'active']);
+Route::post('/orders', [OrderController::class, 'store']); // checkout
+Route::get('/orders/code/{orderCode}', [OrderController::class, 'show']);
+Route::post('/payments', [PaymentController::class, 'store']);
+ // lihat detail via kode
 
 /*
 |--------------------------------------------------------------------------
