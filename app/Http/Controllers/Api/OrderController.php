@@ -352,7 +352,7 @@ class OrderController extends Controller
     public function show($identifier)
     {
         try {
-            $order = Order::with(['items.product', 'user'])
+            $order = Order::with(['items.product', 'payments', 'user'])
                 ->where('order_code', $identifier) // jika pakai order_code
                 ->orWhere('id', $identifier)       // jika pakai ID
                 ->firstOrFail();
