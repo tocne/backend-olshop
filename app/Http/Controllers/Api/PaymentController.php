@@ -55,17 +55,34 @@ class PaymentController extends Controller
             $validated = $request->validate([
                 'order_id' => 'required|exists:orders,id',
                 'amount' => 'required|numeric|min:0',
-                'method' => 'required|string',
-                'status' => 'required|string|in:paid,failed',
+                'method' => 'required|string|in:transfer,qris',
             ]);
 
             $order = Order::findOrFail($validated['order_id']);
 
-            $order->update([
-                'status' => $validated['status'] === 'paid' ? 'paid' : 'pending',
+            // ❌ Cegah pembayaran ulang
+            if ($order->status === 'paid') {
+                return ApiResponse::error('Order sudah dibayar', 400);
+            }
+
+            // ✅ Pastikan order memang menunggu pembayaran
+            if ($order->status !== 'awaiting_payment') {
+                return ApiResponse::error('Order tidak dalam status menunggu pembayaran', 400);
+            }
+
+            // ✅ Simpan payment (SELALU pending)
+            $payment = Payment::create([
+                'order_id' => $order->id,
+                'amount' => $validated['amount'],
+                'method' => $validated['method'],
+                'status' => 'pending',
             ]);
 
-            return ApiResponse::success($order, 'Payment status updated', 200);
+            return ApiResponse::success([
+                'payment_id' => $payment->id,
+                'order_id' => $order->id,
+                'status' => 'awaiting_payment',
+            ], 'Payment initiated');
 
         } catch (\Throwable $th) {
             return ApiResponse::error($th->getMessage(), 500);

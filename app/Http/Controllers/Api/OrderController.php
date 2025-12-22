@@ -217,15 +217,45 @@ class OrderController extends Controller
     public function markAsPaid($id)
     {
         try {
-            $order = Order::findOrFail($id);
+            $order = Order::with('payments')->findOrFail($id);
 
-            if ($order->status !== 'pending') {
-                return ApiResponse::error('Only pending orders can be marked as paid.', 400);
+            // ✅ hanya order menunggu pembayaran
+            if ($order->status !== 'awaiting_payment') {
+                return ApiResponse::error(
+                    'Only orders awaiting payment can be marked as paid.',
+                    400
+                );
             }
 
-            $order->update(['status' => 'paid']);
+            // ✅ ambil payment pending terakhir
+            $payment = $order->payments()
+                ->where('status', 'pending')
+                ->latest()
+                ->first();
 
-            return ApiResponse::success($order, 'Order marked as paid.');
+            if (! $payment) {
+                return ApiResponse::error(
+                    'No pending payment found for this order.',
+                    400
+                );
+            }
+
+            // ✅ update payment & order
+            $payment->update([
+                'status' => 'paid',
+                'paid_at' => now(),
+            ]);
+
+            $order->update([
+                'status' => 'paid',
+                'paid_at' => now(),
+            ]);
+
+            return ApiResponse::success([
+                'order' => $order,
+                'payment' => $payment,
+            ], 'Order successfully marked as paid.');
+
         } catch (\Throwable $th) {
             return ApiResponse::error($th->getMessage(), 500);
         }
