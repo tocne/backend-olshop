@@ -46,6 +46,8 @@ Route::get('/orders/active', [OrderController::class, 'active']);
 Route::post('/orders', [OrderController::class, 'store']); // checkout
 Route::get('/orders/code/{orderCode}', [OrderController::class, 'show']);
 Route::post('/payments', [PaymentController::class, 'store']);
+Route::post('/payments/{payment}/upload-proof',[PaymentController::class, 'uploadProof']);
+
  // lihat detail via kode
 
 /*

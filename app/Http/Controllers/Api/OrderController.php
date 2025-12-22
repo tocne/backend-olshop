@@ -194,7 +194,7 @@ class OrderController extends Controller
                         $baseData,
                         ['items' => $request->input('items')]
                     ))
-                    ->load('items')
+                    ->load(['items', 'payments'])
             ),
 
             // ================= SERI =================
@@ -207,7 +207,7 @@ class OrderController extends Controller
                             'quantity' => $request->input('quantity'),
                         ]
                     ))
-                    ->load('items')
+                    ->load(['items', 'payments'])
             ),
         };
     }

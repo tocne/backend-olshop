@@ -29,6 +29,49 @@ class PaymentController extends Controller
         }
     }
 
+    public function uploadProof(Request $request, Payment $payment)
+    {
+        try {
+            // 1️⃣ VALIDASI FILE
+            $request->validate([
+                'proof' => 'required|image|mimes:jpg,jpeg,png|max:2048',
+            ]);
+
+            // 2️⃣ OPSIONAL: CEGAH UPLOAD ULANG
+            if ($payment->proof_image) {
+                return ApiResponse::error(
+                    'Bukti pembayaran sudah diupload sebelumnya.',
+                    400
+                );
+            }
+
+            // 3️⃣ SIMPAN FILE KE STORAGE
+            $path = $request->file('proof')->store(
+                'payments',
+                'public'
+            );
+
+            // 4️⃣ UPDATE DATA PAYMENT
+            $payment->update([
+                'proof_image' => $path,
+                'status' => 'waiting_verification',
+                'uploaded_at' => now(),
+            ]);
+
+            return ApiResponse::success(
+                $payment,
+                'Bukti pembayaran berhasil diupload. Menunggu verifikasi admin.'
+            );
+
+        } catch (\Throwable $th) {
+            return ApiResponse::error(
+                $th->getMessage(),
+                500
+            );
+        }
+    }
+
+
     /**
      * @OA\Post(
      *     path="/api/payments",
