@@ -5,10 +5,27 @@ namespace App\Services;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Series;
+use App\Models\Payment;
+
 use Illuminate\Support\Facades\DB;
 
 class OrderService
 {
+
+    /**
+ * Buat payment awal untuk setiap order
+ * Selalu dipanggil saat checkout
+ */
+protected function createInitialPayment(Order $order, array $data = []): void
+{
+    Payment::create([
+        'order_id' => $order->id,
+        'amount'   => $order->total,
+        'method'   => $data['payment_method'] ?? 'transfer',
+        'status'   => 'pending',
+    ]);
+}
+
     /* ============================================
      | Generate Order Code
      |============================================ */
@@ -184,6 +201,8 @@ class OrderService
                 'total' => $subtotal,
             ]);
 
+$this->createInitialPayment($order, $data);
+
             return $order;
         });
     }
@@ -251,6 +270,8 @@ class OrderService
                 'subtotal' => $subtotal,
                 'total' => $subtotal,
             ]);
+
+            $this->createInitialPayment($order, $data);
 
             return $order;
         });
@@ -347,6 +368,8 @@ class OrderService
                 'total' => $subtotal,
             ]);
 
+            $this->createInitialPayment($order, $data);
+            
             return $order->load('items');
         });
     }
