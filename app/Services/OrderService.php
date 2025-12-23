@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\Series;
 use App\Models\Payment;
+use App\Helpers\ApiResponse;
 
 use Illuminate\Support\Facades\DB;
 
@@ -142,71 +143,76 @@ protected function createInitialPayment(Order $order, array $data = []): void
      |============================================ */
     public function createReadyOrder($user, array $data)
     {
-        return DB::transaction(function () use ($user, $data) {
+        try{
+            return DB::transaction(function () use ($user, $data) {
 
-            // 1. CREATE ORDER
-            $order = Order::create([
-                'user_id' => $user?->id,
-                'order_code' => $this->generateOrderCode(),
-                'order_type' => 'normal',
-                'status' => 'pending',
+                // 1. CREATE ORDER
+                $order = Order::create([
+                    'user_id' => $user?->id,
+                    'order_code' => $this->generateOrderCode(),
+                    'order_type' => 'normal',
+                    'status' => 'pending',
 
-                'customer_name' => $data['customer_name'],
-                'customer_phone' => $data['customer_phone'],
-                'address' => $data['address'],
-                'notes' => $data['notes'] ?? null,
+                    'customer_name' => $data['customer_name'],
+                    'customer_phone' => $data['customer_phone'],
+                    'address' => $data['address'],
+                    'notes' => $data['notes'] ?? null,
 
-                'subtotal' => 0,
-                'total' => 0,
-            ]);
-
-            $subtotal = 0;
-
-            foreach ($data['items'] as $item) {
-
-                $product = Product::findOrFail($item['product_id']);
-
-                // 🔒 LOCK VARIANT ROW
-                $variant = $product->sizes()
-                    ->where('id', $item['product_size_id'])
-                    ->lockForUpdate()
-                    ->firstOrFail();
-
-                if ($product->stock_type === 'ready') {
-                    if ($variant->stock < $item['quantity']) {
-                        throw new \Exception(
-                            "Stok ukuran {$variant->size} untuk {$product->name} tidak mencukupi"
-                        );
-                    }
-
-                    // aman karena row terkunci
-                    $variant->decrement('stock', $item['quantity']);
-                }
-
-                $lineTotal = $item['price'] * $item['quantity'];
-
-                $order->items()->create([
-                    'product_id' => $product->id,
-                    'product_name' => $product->name,
-                    'size' => $variant->size,
-                    'quantity' => $item['quantity'],
-                    'price' => $item['price'],
-                    'total_price' => $lineTotal,
-                    'stock_type' => $product->stock_type,
+                    'subtotal' => 0,
+                    'total' => 0,
                 ]);
 
-                $subtotal += $lineTotal;
-            }
+                $subtotal = 0;
 
-            $order->update([
-                'subtotal' => $subtotal,
-                'total' => $subtotal,
-            ]);
+                foreach ($data['items'] as $item) {
 
-$this->createInitialPayment($order, $data);
+                    $product = Product::findOrFail($item['product_id']);
 
-            return $order;
-        });
+                    // 🔒 LOCK VARIANT ROW
+                    $variant = $product->sizes()
+                        ->where('id', $item['product_size_id'])
+                        ->lockForUpdate()
+                        ->firstOrFail();
+
+                    if ($product->stock_type === 'ready') {
+                        if ($variant->stock < $item['quantity']) {
+                            throw new \Exception(
+                                "Stok ukuran {$variant->size} untuk {$product->name} tidak mencukupi"
+                            );
+                        }
+
+                        // aman karena row terkunci
+                        $variant->decrement('stock', $item['quantity']);
+                    }
+
+                    $lineTotal = $item['price'] * $item['quantity'];
+
+                    $order->items()->create([
+                        'product_id' => $product->id,
+                        'product_name' => $product->name,
+                        'size' => $variant->size,
+                        'quantity' => $item['quantity'],
+                        'price' => $item['price'],
+                        'total_price' => $lineTotal,
+                        'stock_type' => $product->stock_type,
+                    ]);
+
+                    $subtotal += $lineTotal;
+                }
+
+                $order->update([
+                    'subtotal' => $subtotal,
+                    'total' => $subtotal,
+                ]);
+
+            $this->createInitialPayment($order, $data);
+
+                return $order;
+            });
+          } catch (\Throwable $e) {
+        // ⬅️ INI KUNCI UTAMA
+        throw new \Exception('[ORDER_SERVICE] ' . $e->getMessage());
+    }
     }
 
     /* ============================================

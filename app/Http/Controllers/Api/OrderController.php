@@ -138,79 +138,89 @@ class OrderController extends Controller
 
     protected function handleStore(Request $request)
     {
-        $user = $request->user();
-        $mode = strtolower($request->input('order_mode'));
+        try{
+            $user = $request->user();
+            $mode = strtolower($request->input('order_mode'));
 
-        if (! in_array($mode, ['ready', 'pilsuk', 'seri'])) {
-            return ApiResponse::error('Mode order tidak dikenal', 400);
-        }
+            if (! in_array($mode, ['ready', 'pilsuk', 'seri'])) {
+                return ApiResponse::error('Mode order tidak dikenal', 400);
+            }
 
-        if ($mode !== 'seri' && ! $request->has('items')) {
-            return ApiResponse::error('Items wajib diisi', 422);
-        }
+            if ($mode !== 'seri' && ! $request->has('items')) {
+                return ApiResponse::error('Items wajib diisi', 422);
+            }
 
-        if ($mode === 'seri' && ! $request->has('series_id')) {
-            return ApiResponse::error('Series wajib dipilih', 422);
-        }
+            if ($mode === 'seri' && ! $request->has('series_id')) {
+                return ApiResponse::error('Series wajib dipilih', 422);
+            }
 
-        if ($mode === 'seri') {
-            $request->validate([
-                'series_id' => 'required|integer|exists:series,id',
-                'quantity' => 'nullable|integer|min:1',
-                'customer_name' => 'required|string',
-                'customer_phone' => 'required|string',
-                'address' => 'required|string',
-                'notes' => 'nullable|string',
-                'shipping_cost' => 'nullable|numeric|min:0',
+            if ($mode === 'seri') {
+                $request->validate([
+                    'series_id' => 'required|integer|exists:series,id',
+                    'quantity' => 'nullable|integer|min:1',
+                    'customer_name' => 'required|string',
+                    'customer_phone' => 'required|string',
+                    'address' => 'required|string',
+                    'notes' => 'nullable|string',
+                    'shipping_cost' => 'nullable|numeric|min:0',
+                ]);
+            }
+
+            // data dasar (shared)
+            $baseData = $request->only([
+                'customer_name',
+                'customer_phone',
+                'address',
+                'notes',
+                'shipping_cost',
             ]);
-        }
 
-        // data dasar (shared)
-        $baseData = $request->only([
-            'customer_name',
-            'customer_phone',
-            'address',
-            'notes',
-            'shipping_cost',
-        ]);
+            $baseData['shipping_cost'] = $baseData['shipping_cost'] ?? 0;
 
-        $baseData['shipping_cost'] = $baseData['shipping_cost'] ?? 0;
+            return match ($mode) {
 
-        return match ($mode) {
+                // ================= READY =================
+                'ready' => new OrderResource(
+                    $this->orderService
+                        ->createReadyOrder($user, array_merge(
+                            $baseData,
+                            ['items' => $request->input('items')]
+                        ))
+                        ->load(['items', 'payments'])
+                ),
 
-            // ================= READY =================
-            'ready' => new OrderResource(
-                $this->orderService
-                    ->createReadyOrder($user, array_merge(
-                        $baseData,
-                        ['items' => $request->input('items')]
-                    ))
-                    ->load(['items', 'payments'])
-            ),
+                // ================= PILSUK =================
+                'pilsuk' => new OrderResource(
+                    $this->orderService
+                        ->createPilsukOrder($user, array_merge(
+                            $baseData,
+                            ['items' => $request->input('items')]
+                        ))
+                        ->load(['items', 'payments'])
+                ),
 
-            // ================= PILSUK =================
-            'pilsuk' => new OrderResource(
-                $this->orderService
-                    ->createPilsukOrder($user, array_merge(
-                        $baseData,
-                        ['items' => $request->input('items')]
-                    ))
-                    ->load(['items', 'payments'])
-            ),
+                // ================= SERI =================
+                'seri' => new OrderResource(
+                    $this->orderService
+                        ->createSeriOrder($user, array_merge(
+                            $baseData,
+                            [
+                                'series_id' => $request->input('series_id'),
+                                'quantity' => $request->input('quantity'),
+                            ]
+                        ))
+                        ->load(['items', 'payments'])
+                ),
+            };
+            
+        } catch (\Throwable $e) {
 
-            // ================= SERI =================
-            'seri' => new OrderResource(
-                $this->orderService
-                    ->createSeriOrder($user, array_merge(
-                        $baseData,
-                        [
-                            'series_id' => $request->input('series_id'),
-                            'quantity' => $request->input('quantity'),
-                        ]
-                    ))
-                    ->load(['items', 'payments'])
-            ),
-        };
+        // 🔥 INI KUNCI AGAR ERROR MUNCUL DI FRONTEND
+        return ApiResponse::error(
+            $e->getMessage(),
+            500
+        );
+    }
     }
 
     /**
