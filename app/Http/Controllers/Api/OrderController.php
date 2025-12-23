@@ -110,6 +110,7 @@ class OrderController extends Controller
             'customer_phone' => 'required|string|max:30',
             'address' => 'required|string',
             'notes' => 'nullable|string',
+            'payment_method' => 'nullable|string|in:transfer,qris',
 
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',

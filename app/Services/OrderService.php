@@ -20,11 +20,13 @@ protected function createInitialPayment(Order $order, array $data = []): void
 {
     Payment::create([
         'order_id' => $order->id,
-        'amount'   => $order->total,
+        'amount'   => $order->total ?? $order->subtotal ?? 0,
         'method'   => $data['payment_method'] ?? 'transfer',
         'status'   => 'pending',
     ]);
 }
+
+
 
     /* ============================================
      | Generate Order Code
@@ -369,7 +371,7 @@ $this->createInitialPayment($order, $data);
             ]);
 
             $this->createInitialPayment($order, $data);
-            
+
             return $order->load('items');
         });
     }
