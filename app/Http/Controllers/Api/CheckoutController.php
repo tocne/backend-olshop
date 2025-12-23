@@ -64,6 +64,13 @@ class CheckoutController extends Controller
             'status' => 'pending',
         ]);
 
+        $payment = Payment::create([
+            'order_id' => $order->id,
+            'amount' => $order->subtotal, // atau total + ongkir nanti
+            'method' => $request->payment_method ?? 'transfer',
+            'status' => 'pending',
+        ]);
+
         // 4. SIMPAN ITEM
         foreach ($request->items as $item) {
             OrderItem::create([
@@ -92,7 +99,7 @@ class CheckoutController extends Controller
         return response()->json([
             'status' => true,
             'message' => 'Order berhasil dibuat',
-            'order_code' => $order->order_code,
+            'data' => $order->load('items', 'payments'),
         ]);
 
     }
