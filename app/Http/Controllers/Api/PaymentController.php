@@ -29,47 +29,65 @@ class PaymentController extends Controller
         }
     }
 
-    public function uploadProof(Request $request, Payment $payment)
-    {
-        try {
-            // 1️⃣ VALIDASI FILE
-            $request->validate([
-                'proof' => 'required|image|mimes:jpg,jpeg,png|max:2048',
-            ]);
+    public function uploadProof(Request $request, $orderCode)
+{
+    try {
+        // 1️⃣ VALIDASI FILE
+        $request->validate([
+            'proof' => 'required|image|mimes:jpg,jpeg,png|max:2048',
+        ]);
 
-            // 2️⃣ OPSIONAL: CEGAH UPLOAD ULANG
-            if ($payment->proof_image) {
-                return ApiResponse::error(
-                    'Bukti pembayaran sudah diupload sebelumnya.',
-                    400
-                );
-            }
+        // 2️⃣ CARI ORDER
+        $order = Order::where('order_code', $orderCode)
+            ->with('payments')
+            ->firstOrFail();
 
-            // 3️⃣ SIMPAN FILE KE STORAGE
-            $path = $request->file('proof')->store(
-                'payments',
-                'public'
-            );
+        // 3️⃣ AMBIL PAYMENT PENDING
+        $payment = $order->payments()
+            ->where('status', 'pending')
+            ->latest()
+            ->first();
 
-            // 4️⃣ UPDATE DATA PAYMENT
-            $payment->update([
-                'proof_image' => $path,
-                'status' => 'waiting_verification',
-                'uploaded_at' => now(),
-            ]);
-
-            return ApiResponse::success(
-                $payment,
-                'Bukti pembayaran berhasil diupload. Menunggu verifikasi admin.'
-            );
-
-        } catch (\Throwable $th) {
+        if (! $payment) {
             return ApiResponse::error(
-                $th->getMessage(),
-                500
+                'Payment pending tidak ditemukan',
+                404
             );
         }
+
+        // 4️⃣ CEGAH UPLOAD ULANG
+        if ($payment->proof_image) {
+            return ApiResponse::error(
+                'Bukti pembayaran sudah diupload sebelumnya.',
+                400
+            );
+        }
+
+        // 5️⃣ SIMPAN FILE
+        $path = $request->file('proof')->store(
+            'payments',
+            'public'
+        );
+
+        // 6️⃣ UPDATE PAYMENT
+        $payment->update([
+            'proof_image' => $path,
+            'status' => 'waiting_verification',
+            'uploaded_at' => now(),
+        ]);
+
+        return ApiResponse::success(
+            $payment,
+            'Bukti pembayaran berhasil diupload. Menunggu verifikasi admin.'
+        );
+
+    } catch (\Throwable $th) {
+        return ApiResponse::error(
+            $th->getMessage(),
+            500
+        );
     }
+}
 
 
     /**
