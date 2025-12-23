@@ -66,7 +66,6 @@ class PaymentController extends Controller
         // 5️⃣ SIMPAN FILE
         $path = $request->file('proof')->store(
             'payments',
-            'public'
         );
 
         // 6️⃣ UPDATE PAYMENT
