@@ -71,7 +71,7 @@ class PaymentController extends Controller
         // 6️⃣ UPDATE PAYMENT
         $payment->update([
             'proof_image' => $path,
-            'status' => 'waiting_verification',
+            'status' => 'pending',
             'uploaded_at' => now(),
         ]);
 
