@@ -184,7 +184,7 @@ class OrderController extends Controller
                         $baseData,
                         ['items' => $request->input('items')]
                     ))
-                    ->load('items')
+                    ->load(['items', 'payments'])
             ),
 
             // ================= PILSUK =================
