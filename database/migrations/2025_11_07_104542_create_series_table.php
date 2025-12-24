@@ -19,8 +19,11 @@ return new class extends Migration
 
             // harga paket harus integer (lebih cocok untuk e-commerce Indonesia)
             $table->integer('price')->default(0);
-
+            $table->string('thumbnail')->nullable();
+            $table->boolean('active')->default(true);
+            $table->integer('min_stock')->nullable();
             $table->string('series_code')->unique();
+            
             $table->timestamps();
         });
     }

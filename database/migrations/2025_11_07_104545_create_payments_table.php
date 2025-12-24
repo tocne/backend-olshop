@@ -17,6 +17,12 @@ return new class extends Migration
             $table->string('payment_method');
             $table->decimal('amount', 10, 2);
             $table->string('status')->default('pending');
+            $table->string('proof_image')->nullable();
+            $table->timestamp('uploaded_at')->nullable();
+
+            // audit & future-proof
+            $table->string('reference')->nullable(); // QRIS ref
+            $table->json('meta')->nullable(); 
             $table->timestamps();
         });
     }
