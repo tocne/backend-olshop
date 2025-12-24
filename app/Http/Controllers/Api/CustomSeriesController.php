@@ -51,75 +51,73 @@ class CustomSeriesController extends Controller
     }
 
     public function store(Request $request)
-    {
-        try {
-            // =========================
-            // VALIDATION (WAJIB IMAGE)
-            // =========================
-            $request->validate([
-                'name' => 'required|string|max:255',
-                'description' => 'nullable|string',
-                'price' => 'required|numeric|min:0',
+{
+    try {
+        // =========================
+        // VALIDATION (WAJIB IMAGE)
+        // =========================
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'price' => 'required|numeric|min:0',
 
-                'thumbnail' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
-                'images' => 'nullable|array',
-                'images.*' => 'image|mimes:jpg,jpeg,png,webp|max:2048',
+            'thumbnail' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'images' => 'nullable|array',
+            'images.*' => 'image|mimes:jpg,jpeg,png,webp|max:2048',
 
-                'active' => 'nullable|boolean',
+            'active' => 'nullable|boolean',
+        ]);
+
+        $series = DB::transaction(function () use ($request) {
+
+            // =========================
+            // UPLOAD THUMBNAIL (WAJIB ADA)
+            // =========================
+            $thumbnailPath = $request->file('thumbnail')
+                ->store('series/thumbnails', 'public');
+
+            $thumbnailUrl = asset('storage/' . $thumbnailPath);
+
+            // =========================
+            // CREATE SERIES
+            // =========================
+            $series = Series::create([
+                'name' => $request->name,
+                'description' => $request->description,
+                'price' => $request->price,
+                'thumbnail' => $thumbnailUrl, // ✅ URL VALID
+                'series_code' => 'SER-' . strtoupper(Str::random(6)),
+                'active' => $request->active ?? true,
             ]);
 
-            $series = DB::transaction(function () use ($request) {
+            // =========================
+            // UPLOAD GALLERY (OPTIONAL)
+            // =========================
+            $galleryFiles = $request->file('images');
 
-                // =========================
-                // UPLOAD THUMBNAIL (PASTI ADA)
-                // =========================
-                $thumbnailUrl = SupabaseUploader::upload(
-                    $request->file('thumbnail'),
-                    'series/thumbnails'
-                );
+            if (is_array($galleryFiles)) {
+                foreach ($galleryFiles as $index => $image) {
+                    $imagePath = $image->store('series/gallery', 'public');
+                    $imageUrl = asset('storage/' . $imagePath);
 
-                // =========================
-                // CREATE SERIES
-                // =========================
-                $series = Series::create([
-                    'name' => $request->name,
-                    'description' => $request->description,
-                    'price' => $request->price,
-                    'thumbnail' => $thumbnailUrl, // URL FULL
-                    'series_code' => 'SER-'.strtoupper(Str::random(6)),
-                    'active' => $request->active ?? true,
-                ]);
-
-                // =========================
-                // UPLOAD GALLERY (OPTIONAL)
-                // =========================
-                $galleryFiles = $request->file('images');
-
-                if (is_array($galleryFiles)) {
-                    foreach ($galleryFiles as $index => $image) {
-                        $imageUrl = SupabaseUploader::upload(
-                            $image,
-                            'series/gallery'
-                        );
-
-                        SeriesImage::create([
-                            'series_id' => $series->id,
-                            'image_url' => $imageUrl,
-                            'order' => $index,
-                        ]);
-                    }
+                    SeriesImage::create([
+                        'series_id' => $series->id,
+                        'image_url' => $imageUrl,
+                        'order' => $index,
+                    ]);
                 }
+            }
 
-                return $series->load('images');
-            });
+            return $series->load('images');
+        });
 
-            return ApiResponse::success(
-                $series,
-                'Custom series created successfully'
-            );
+        return ApiResponse::success(
+            $series,
+            'Custom series created successfully'
+        );
 
-        } catch (\Throwable $e) {
-            return ApiResponse::error($e->getMessage(), 500);
-        }
+    } catch (\Throwable $e) {
+        return ApiResponse::error($e->getMessage(), 500);
     }
+}
 }

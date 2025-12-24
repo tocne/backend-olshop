@@ -5,7 +5,7 @@ namespace App\Services;
 use App\Models\Product;
 use App\Models\Category;
 use Illuminate\Support\Str;
-use App\Services\SupabaseUploader;
+use Illuminate\Http\UploadedFile;
 
 class ProductService
 {
@@ -36,21 +36,20 @@ class ProductService
             ? array_sum(array_column($validated['sizes'], 'stock'))
             : 0;
 
-// === UPLOAD IMAGE ===
-$image_url = null;
+        // =========================
+        // UPLOAD MAIN IMAGE
+        // =========================
+        $imageUrl = null;
 
-if ($image) {
-    // CASE 1: FILE upload (manual)
-    if ($image instanceof \Illuminate\Http\UploadedFile) {
-        $image_url = SupabaseUploader::upload($image, 'products');
-    }
-
-    // CASE 2: URL (import excel)
-    elseif (is_string($image)) {
-        $image_url = $image; // langsung simpan URL
-    }
-}
-
+        // CASE 1: Upload file (admin/manual)
+        if ($image instanceof UploadedFile) {
+            $path = $image->store('products', 'public');
+            $imageUrl = asset('storage/' . $path);
+        }
+        // CASE 2: URL string (import Excel)
+        elseif (is_string($image) && filter_var($image, FILTER_VALIDATE_URL)) {
+            $imageUrl = $image;
+        }
 
         // === CREATE PRODUCT ===
         $product = Product::create([
@@ -68,19 +67,27 @@ if ($image) {
             'po_notes' => $validated['stock_type'] === 'po'
                 ? ($validated['po_notes'] ?? null)
                 : null,
-            'image_url' => $image_url,
+            'image_url' => $imageUrl, // ✅ SELALU URL / NULL
         ]);
 
-        // === MULTI IMAGES ===
+        // =========================
+        // MULTI IMAGES (OPTIONAL)
+        // =========================
         foreach ($images as $index => $file) {
-            $url = SupabaseUploader::upload($file, 'products');
-            $product->images()->create([
-                'image_url' => $url,
-                'order' => $index,
-            ]);
+            if ($file instanceof UploadedFile) {
+                $path = $file->store('products/gallery', 'public');
+                $url = asset('storage/' . $path);
+
+                $product->images()->create([
+                    'image_url' => $url,
+                    'order' => $index,
+                ]);
+            }
         }
 
-        // === SIZES ===
+        // =========================
+        // SIZES
+        // =========================
         if ($validated['stock_type'] === 'ready') {
             foreach ($validated['sizes'] as $s) {
                 $product->sizes()->create([
@@ -91,7 +98,9 @@ if ($image) {
             }
         }
 
-        // === COLORS ===
+        // =========================
+        // COLORS
+        // =========================
         if (!empty($validated['colors'])) {
             foreach ($validated['colors'] as $color) {
                 $product->colors()->create([

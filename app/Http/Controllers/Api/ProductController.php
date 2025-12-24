@@ -102,7 +102,9 @@ class ProductController extends Controller
             'sizes.*.size' => 'required_if:stock_type,ready|string|max:20',
             'sizes.*.stock' => 'required_if:stock_type,ready|integer|min:0',
 
-            'image' => 'nullable|image|max:2048',
+            'images' => 'nullable|array',
+            'images.*' => 'image|mimes:jpg,jpeg,png,webp|max:2048',
+
         ]);
 
         $product = $productService->create(
@@ -112,7 +114,7 @@ class ProductController extends Controller
         );
 
         return ApiResponse::success(
-            $product->load(['sizes', 'colors']),
+            $product->load(['sizes', 'colors','images']),
             'Product created successfully'
         );
 
