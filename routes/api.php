@@ -158,3 +158,6 @@ Route::middleware(['auth:sanctum', 'is_admin'])->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::get('/products/category/{categoryPrefix}', [ProductController::class, 'getProductsByCategory']);
+Route::get('/public/products', [ProductController::class, 'publicIndex']);
+Route::get('/public/series', [SeriesController::class, 'publicIndex']);
+Route::get('/public/banners', [BannerController::class, 'index']);

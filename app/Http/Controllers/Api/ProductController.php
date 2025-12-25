@@ -53,6 +53,14 @@ class ProductController extends Controller
         }
     }
 
+    public function publicIndex()
+{
+    return response()->json(
+        Product::where('is_active', 1)->get()
+    );
+}
+
+
     /**
      * @OA\Post(
      *    path="/api/products",

@@ -31,6 +31,13 @@ class SeriesController extends Controller
         }
     }
 
+        public function publicIndex()
+    {
+        return response()->json(
+            Series::where('is_active', 1)->get()
+        );
+    }
+
     // ==========================================================
     // GET ONE SERIES
     // ==========================================================
