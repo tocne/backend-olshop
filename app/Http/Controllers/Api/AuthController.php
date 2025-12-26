@@ -85,34 +85,36 @@ class AuthController extends Controller
      *     )
      * )
      */
-public function login(Request $request)
-{
-    $validated = $request->validate([
-        'email' => 'required|string|email',
-        'password' => 'required|string',
-    ]);
+    public function login(Request $request)
+    {
+        try {
+            $request->validate([
+                'email' => 'required|email',
+                'password' => 'required'
+            ]);
 
-    $user = User::where('email', $validated['email'])->first();
+            $user = User::where('email', $request->email)
+                ->where('is_admin', 1)
+                ->first();
 
-    if (! $user || ! Hash::check($validated['password'], $user->password)) {
-        return response()->json([
-            'message' => 'Email atau password salah.'
-        ], 401);
+            if (!$user || !Hash::check($request->password, $user->password)) {
+                return response()->json([
+                    'message' => 'Email atau password salah'
+                ], 401);
+            }
+
+            return response()->json([
+                'token' => 'ADMIN_OK',
+                'user' => $user
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Server error',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
-    if (! $user->is_admin) {
-        return response()->json([
-            'message' => 'Forbidden'
-        ], 403);
-    }
-
-    $token = $user->createToken('admin')->plainTextToken;
-
-    return response()->json([
-        'message' => 'Login successful',
-        'token' => $token,
-    ]);
-}
 
     /**
      * @OA\Post(

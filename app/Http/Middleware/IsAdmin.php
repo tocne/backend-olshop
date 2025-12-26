@@ -10,12 +10,10 @@ class IsAdmin
 {
     public function handle(Request $request, Closure $next)
     {
-        if (!auth()->check()) {
-            abort(404);
-        }
-
-        if (!auth()->user()->is_admin) {
-            abort(404);
+        if (!$request->user() || !$request->user()->is_admin) {
+            return response()->json([
+                'message' => 'Forbidden. Admin only.'
+            ], 403);
         }
 
         return $next($request);
